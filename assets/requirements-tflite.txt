@@ -1,0 +1,4 @@
+# For running assets/test_tflite.py (Python 3.10–3.13)
+tensorflow>=2.15
+numpy
+Pillow
