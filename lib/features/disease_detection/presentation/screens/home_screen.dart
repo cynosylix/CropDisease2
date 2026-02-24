@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../services/analysis_repository.dart';
 import '../../../../services/auth_service.dart';
 import '../../../../services/ml_service.dart';
 import 'about_screen.dart';
@@ -33,6 +34,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final _picker = ImagePicker();
   final _mlService = MlService();
+  final _analysisRepo = AnalysisRepository();
   late final Future<String?> _userNameFuture;
 
   File? _image;
@@ -54,8 +56,16 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final picked = await _picker.pickImage(source: source, imageQuality: 85);
       if (picked == null) return;
+      final bytes = await picked.readAsBytes();
+      if (bytes.isEmpty) {
+        if (mounted) setState(() => _error = 'Image could not be read. Please try another.');
+        return;
+      }
+      final tempDir = Directory.systemTemp;
+      final tempFile = File('${tempDir.path}/crop_analysis_${DateTime.now().millisecondsSinceEpoch}.jpg');
+      await tempFile.writeAsBytes(bytes);
       setState(() {
-        _image = File(picked.path);
+        _image = tempFile;
         _label = null;
         _confidence = null;
       });
@@ -85,7 +95,7 @@ class _HomeScreenState extends State<HomeScreen> {
       
       // Safety check: Never display "Class_X" labels
       if (label.startsWith('Class_')) {
-        print('⚠️  UI Safety: Filtered out Class_X label: $label');
+        debugPrint('⚠️  UI Safety: Filtered out Class_X label: $label');
         label = 'Unknown'; // Fallback to Unknown if we somehow get Class_X
       }
       
@@ -98,19 +108,29 @@ class _HomeScreenState extends State<HomeScreen> {
         throw Exception('Model returned invalid confidence value.');
       }
       
-      // If confidence is extremely low, treat as "Unknown"
+      // Only treat as "not a plant leaf" when confidence is very low (model is unsure what it is).
+      // Otherwise show the model's actual label; many leaves get 0.2–0.5 confidence and are still valid.
+      const double notPlantLeafThreshold = 0.18;
       String displayLabel = label;
-      if (conf < 0.15) {
-        print('⚠️  Very low confidence (${(conf * 100).toStringAsFixed(1)}%) - treating as uncertain/unknown');
+      if (conf < 0.12) {
         displayLabel = 'Unknown';
+      } else if (conf < notPlantLeafThreshold) {
+        displayLabel = 'Not a plant leaf';
       }
-      
+
+      // Save analysis to Firebase for this user (background)
+      _analysisRepo.saveAnalysis(
+        userKey: widget.authService.loggedInUserKey,
+        label: displayLabel,
+        confidence: conf,
+      );
       if (mounted) {
         setState(() {
           _label = displayLabel;
           _confidence = conf;
-          // Show warning for low confidence but still display the result
-          if (conf < 0.15) {
+          if (displayLabel == 'Not a plant leaf') {
+            _error = null; // Message is shown in the card instead
+          } else if (conf < 0.15) {
             _error = 'Very low confidence (${(conf * 100).toStringAsFixed(0)}%). The image may not be recognized. Please try a clearer image of a crop leaf.';
           } else if (isUncertain && conf < 0.5) {
             _error = 'Low confidence prediction (${(conf * 100).toStringAsFixed(0)}%). Result may be uncertain - please verify or try another image.';
@@ -123,8 +143,10 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     } catch (e) {
       if (mounted) {
+        final raw = e.toString();
+        final msg = raw.replaceFirst(RegExp(r'^(Exception|TimeoutException|SocketException):\s*'), '');
         setState(() {
-          _error = '${AppLocalizations.of(context).error}\n${e.toString()}';
+          _error = msg.length > 200 ? '${msg.substring(0, 200)}…' : msg;
           _label = null;
           _confidence = null;
         });
@@ -245,17 +267,17 @@ class _HomeScreenState extends State<HomeScreen> {
                           end: Alignment.bottomRight,
                           colors: isDark
                               ? [
-                                  theme.colorScheme.primary.withOpacity(0.25),
-                                  theme.colorScheme.secondary.withOpacity(0.15),
+                                  theme.colorScheme.primary.withValues(alpha: 0.25),
+                                  theme.colorScheme.secondary.withValues(alpha: 0.15),
                                 ]
                               : [
-                                  theme.colorScheme.primary.withOpacity(0.18),
-                                  theme.colorScheme.secondary.withOpacity(0.08),
+                                  theme.colorScheme.primary.withValues(alpha: 0.18),
+                                  theme.colorScheme.secondary.withValues(alpha: 0.08),
                                 ],
                         ),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: theme.colorScheme.primary.withOpacity(0.2),
+                          color: theme.colorScheme.primary.withValues(alpha: 0.2),
                           width: 1,
                         ),
                       ),
@@ -265,7 +287,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: theme.colorScheme.primary.withOpacity(0.15),
+                              color: theme.colorScheme.primary.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(14),
                             ),
                             child: Icon(
@@ -316,17 +338,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       color: theme.colorScheme.surfaceContainerLow,
                       borderRadius: BorderRadius.circular(20),
                       elevation: 0,
-                      shadowColor: theme.colorScheme.shadow.withOpacity(0.08),
+                      shadowColor: theme.colorScheme.shadow.withValues(alpha: 0.08),
                       child: Container(
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: theme.colorScheme.outlineVariant.withOpacity(0.6),
+                            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.6),
                             width: 1,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: theme.colorScheme.shadow.withOpacity(0.06),
+                              color: theme.colorScheme.shadow.withValues(alpha: 0.06),
                               blurRadius: 12,
                               offset: const Offset(0, 4),
                             ),
@@ -346,7 +368,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                           top: 12,
                                           right: 12,
                                           child: Material(
-                                            color: Colors.black.withOpacity(0.5),
+                                            color: Colors.black.withValues(alpha: 0.5),
                                             borderRadius: BorderRadius.circular(12),
                                             child: InkWell(
                                               onTap: _clearImage,
@@ -369,7 +391,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                           Container(
                                             padding: const EdgeInsets.all(20),
                                             decoration: BoxDecoration(
-                                              color: theme.colorScheme.primary.withOpacity(0.08),
+                                              color: theme.colorScheme.primary.withValues(alpha: 0.08),
                                               shape: BoxShape.circle,
                                             ),
                                             child: Icon(
@@ -408,15 +430,15 @@ class _HomeScreenState extends State<HomeScreen> {
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
-                              theme.colorScheme.primaryContainer.withOpacity(0.3),
-                              theme.colorScheme.secondaryContainer.withOpacity(0.2),
+                              theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+                              theme.colorScheme.secondaryContainer.withValues(alpha: 0.2),
                             ],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
                           borderRadius: BorderRadius.circular(24),
                           border: Border.all(
-                            color: theme.colorScheme.primary.withOpacity(0.2),
+                            color: theme.colorScheme.primary.withValues(alpha: 0.2),
                             width: 1.5,
                           ),
                         ),
@@ -551,10 +573,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           padding: const EdgeInsets.all(16),
                           margin: const EdgeInsets.only(bottom: 16),
                           decoration: BoxDecoration(
-                            color: Colors.orange.withOpacity(0.1),
+                            color: Colors.orange.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: Colors.orange.withOpacity(0.3),
+                              color: Colors.orange.withValues(alpha: 0.3),
                               width: 1,
                             ),
                           ),
@@ -571,7 +593,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 child: Text(
                                   _error!,
                                   style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.onSurface.withOpacity(0.8),
+                                    color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
                                   ),
                                 ),
                               ),
@@ -579,14 +601,17 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                       ],
-                      // Always show result if available, even with low confidence
+                      // Always show result if available
                       if (_label != null && _confidence != null) ...[
-                        _EnhancedResultCard(
-                          label: _label!,
-                          confidence: _confidence!,
-                          loc: loc,
-                          theme: theme,
-                        ),
+                        if (_label == 'Not a plant leaf')
+                          _NotAPlantLeafCard(loc: loc, theme: theme)
+                        else
+                          _EnhancedResultCard(
+                            label: _label!,
+                            confidence: _confidence!,
+                            loc: loc,
+                            theme: theme,
+                          ),
                       ],
                     ],
                   ],
@@ -600,6 +625,56 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         ),
+    );
+  }
+}
+
+class _NotAPlantLeafCard extends StatelessWidget {
+  const _NotAPlantLeafCard({required this.loc, required this.theme});
+
+  final AppLocalizations loc;
+  final ThemeData theme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: theme.colorScheme.outline.withValues(alpha: 0.4),
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.image_not_supported_rounded,
+            size: 48,
+            color: theme.colorScheme.outline,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            loc.notAPlantLeaf,
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: theme.colorScheme.onSurface,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            loc.notAPlantLeafMessage,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              height: 1.45,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -629,7 +704,7 @@ class _EnhancedResultCard extends StatelessWidget {
             ? LinearGradient(
                 colors: [
                   theme.colorScheme.primaryContainer,
-                  theme.colorScheme.primaryContainer.withOpacity(0.7),
+                  theme.colorScheme.primaryContainer.withValues(alpha: 0.7),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -637,7 +712,7 @@ class _EnhancedResultCard extends StatelessWidget {
             : LinearGradient(
                 colors: [
                   theme.colorScheme.tertiaryContainer,
-                  theme.colorScheme.errorContainer.withOpacity(0.3),
+                  theme.colorScheme.errorContainer.withValues(alpha: 0.3),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -647,12 +722,12 @@ class _EnhancedResultCard extends StatelessWidget {
           color: (isHealthy
                   ? theme.colorScheme.primary
                   : theme.colorScheme.tertiary)
-              .withOpacity(0.3),
+              .withValues(alpha: 0.3),
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: theme.colorScheme.shadow.withOpacity(0.1),
+            color: theme.colorScheme.shadow.withValues(alpha: 0.1),
             blurRadius: 20,
             offset: const Offset(0, 8),
             spreadRadius: 2,
@@ -676,13 +751,13 @@ class _EnhancedResultCard extends StatelessWidget {
                         color: (isHealthy
                                 ? theme.colorScheme.primary
                                 : theme.colorScheme.tertiary)
-                            .withOpacity(0.2),
+                            .withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
                           color: (isHealthy
                                   ? theme.colorScheme.primary
                                   : theme.colorScheme.tertiary)
-                              .withOpacity(0.3),
+                              .withValues(alpha: 0.3),
                           width: 1,
                         ),
                       ),
@@ -722,7 +797,7 @@ class _EnhancedResultCard extends StatelessWidget {
                                 color: (isHealthy
                                         ? theme.colorScheme.primary
                                         : theme.colorScheme.tertiary)
-                                    .withOpacity(0.15),
+                                    .withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
@@ -775,7 +850,7 @@ class _EnhancedResultCard extends StatelessWidget {
                       child: LinearProgressIndicator(
                         value: confidence,
                         minHeight: 14,
-                        backgroundColor: theme.colorScheme.surface.withOpacity(0.3),
+                        backgroundColor: theme.colorScheme.surface.withValues(alpha: 0.3),
                         valueColor: AlwaysStoppedAnimation<Color>(
                           isHealthy
                               ? theme.colorScheme.primary
@@ -794,7 +869,7 @@ class _EnhancedResultCard extends StatelessWidget {
             Divider(
               height: 1,
               thickness: 1,
-              color: theme.colorScheme.outline.withOpacity(0.2),
+              color: theme.colorScheme.outline.withValues(alpha: 0.2),
             ),
             if (!isHealthy) ...[
               _InfoSection(
@@ -847,7 +922,7 @@ class _EnhancedResultCard extends StatelessWidget {
                     Text(
                       diseaseInfo.symptoms,
                       style: theme.textTheme.bodyLarge?.copyWith(
-                        color: theme.colorScheme.onPrimaryContainer.withOpacity(0.8),
+                        color: theme.colorScheme.onPrimaryContainer.withValues(alpha: 0.8),
                         height: 1.5,
                       ),
                     ),
@@ -875,7 +950,7 @@ class _EnhancedResultCard extends StatelessWidget {
                             child: Text(
                               tip,
                               style: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.colorScheme.onPrimaryContainer.withOpacity(0.8),
+                                color: theme.colorScheme.onPrimaryContainer.withValues(alpha: 0.8),
                                 height: 1.4,
                               ),
                             ),
@@ -954,7 +1029,7 @@ class _InfoSection extends StatelessWidget {
                         color: (isHealthy
                                 ? theme.colorScheme.primary
                                 : theme.colorScheme.tertiary)
-                            .withOpacity(0.15),
+                            .withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Center(
@@ -975,8 +1050,8 @@ class _InfoSection extends StatelessWidget {
                         entry.value,
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: isHealthy
-                              ? theme.colorScheme.onPrimaryContainer.withOpacity(0.85)
-                              : theme.colorScheme.onTertiaryContainer.withOpacity(0.85),
+                              ? theme.colorScheme.onPrimaryContainer.withValues(alpha: 0.85)
+                              : theme.colorScheme.onTertiaryContainer.withValues(alpha: 0.85),
                           height: 1.5,
                         ),
                       ),
@@ -990,8 +1065,8 @@ class _InfoSection extends StatelessWidget {
               content as String,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: isHealthy
-                    ? theme.colorScheme.onPrimaryContainer.withOpacity(0.85)
-                    : theme.colorScheme.onTertiaryContainer.withOpacity(0.85),
+                    ? theme.colorScheme.onPrimaryContainer.withValues(alpha: 0.85)
+                    : theme.colorScheme.onTertiaryContainer.withValues(alpha: 0.85),
                 height: 1.6,
               ),
             ),
@@ -1023,7 +1098,7 @@ class _GradientButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.15),
+            color: Colors.black.withValues(alpha: 0.15),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),

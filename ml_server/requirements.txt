@@ -1,0 +1,7 @@
+# Dependencies for best.pt (Ultralytics YOLO) inference server
+# Python 3.8+ required. PyTorch is installed automatically with ultralytics.
+
+ultralytics>=8.0.0
+fastapi>=0.100.0
+uvicorn[standard]>=0.22.0
+python-multipart>=0.0.6

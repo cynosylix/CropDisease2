@@ -7,25 +7,38 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Auth backed by Firebase Realtime Database.
 /// - Users are stored under the `users` node in Realtime DB.
 /// - Login state is persisted: user stays logged in until they tap Logout.
+/// - Admin: set `isAdmin: true` on a user record in Firebase, or use the built-in
+///   default admin (admin@cropdisease.com / Admin@123) to see the Admin dashboard.
 class AuthService {
   AuthService({SharedPreferences? prefs}) : _prefs = prefs;
+
+  /// Built-in default admin. Login with this email and password to get admin access.
+  static const String defaultAdminEmail = 'admin@cropdisease.com';
+  static const String defaultAdminPassword = 'Admin@123';
 
   static const _usersPath = 'users';
   static const _prefKeyEmail = 'auth_logged_in_email';
   static const _prefKeyName = 'auth_logged_in_name';
+  static const _prefKeyUserKey = 'auth_logged_in_user_key';
+  static const _prefKeyIsAdmin = 'auth_is_admin';
 
   final SharedPreferences? _prefs;
   DatabaseReference? _usersRef;
 
   String? _loggedInEmail;
   String? _loggedInUserName;
+  String? _loggedInUserKey;
+  bool _isAdmin = false;
 
   Future<SharedPreferences> _getPrefs() async {
-    if (_prefs != null) return _prefs!;
+    final prefs = _prefs;
+    if (prefs != null) return prefs;
     return SharedPreferences.getInstance();
   }
 
   String? get loggedInEmail => _loggedInEmail;
+  String? get loggedInUserKey => _loggedInUserKey;
+  bool get isAdmin => _isAdmin;
   bool get isLoggedIn =>
       _loggedInEmail != null && _loggedInEmail!.isNotEmpty;
 
@@ -57,7 +70,7 @@ class AuthService {
       final firstChild = querySnapshot.children.first;
       final raw = firstChild.value;
       if (raw == null || raw is! Map) return null;
-      return Map<String, dynamic>.from(raw as Map);
+      return Map<String, dynamic>.from(raw);
     } catch (_) {
       return null;
     }
@@ -82,6 +95,8 @@ class AuthService {
           if (_loggedInUserName != null && _loggedInUserName!.isEmpty) {
             _loggedInUserName = null;
           }
+          _loggedInUserKey = prefs.getString(_prefKeyUserKey);
+          _isAdmin = prefs.getBool(_prefKeyIsAdmin) ?? false;
           return true;
         }
         return false;
@@ -115,6 +130,10 @@ class AuthService {
         final prefs = await _getPrefs();
         await prefs.setString(_prefKeyEmail, _loggedInEmail!);
         await prefs.setString(_prefKeyName, _loggedInUserName ?? '');
+        if (_loggedInUserKey != null) {
+          await prefs.setString(_prefKeyUserKey, _loggedInUserKey!);
+        }
+        await prefs.setBool(_prefKeyIsAdmin, _isAdmin);
         return;
       } catch (e) {
         if (attempt == 0) {
@@ -135,6 +154,8 @@ class AuthService {
       final prefs = await _getPrefs();
       await prefs.remove(_prefKeyEmail);
       await prefs.remove(_prefKeyName);
+      await prefs.remove(_prefKeyUserKey);
+      await prefs.remove(_prefKeyIsAdmin);
     } catch (_) {}
   }
 
@@ -230,6 +251,8 @@ class AuthService {
       print('[AuthService] register() completed successfully, path=/${newRef.path}');
       _loggedInEmail = email;
       _loggedInUserName = name.trim().isNotEmpty ? name.trim() : null;
+      _loggedInUserKey = newRef.key;
+      _isAdmin = false;
       await _persistLoginState();
     } on ArgumentError {
       rethrow;
@@ -265,10 +288,50 @@ class AuthService {
     final emailLower = email.trim().toLowerCase();
     final passwordTrimmed = password.trim();
 
+    // Built-in default admin: same login page, no Firebase setup needed.
+    if (emailLower == defaultAdminEmail && passwordTrimmed == defaultAdminPassword) {
+      _loggedInEmail = defaultAdminEmail;
+      _loggedInUserName = 'Admin';
+      _isAdmin = true;
+      try {
+        final usersRef = await _getUsersRef();
+        final snapshot = await usersRef.get();
+        String? existingKey;
+        if (snapshot.exists && snapshot.children.isNotEmpty) {
+          for (final child in snapshot.children) {
+            final raw = child.value;
+            if (raw is! Map) continue;
+            final map = Map<String, dynamic>.from(raw);
+            final em = map['email'];
+            if (em is String && em.trim().toLowerCase() == defaultAdminEmail) {
+              existingKey = child.key;
+              break;
+            }
+          }
+        }
+        if (existingKey != null) {
+          _loggedInUserKey = existingKey;
+        } else {
+          final newRef = usersRef.push();
+          await newRef.set({
+            'name': 'Admin',
+            'email': defaultAdminEmail,
+            'password': defaultAdminPassword,
+            'createdAt': DateTime.now().toIso8601String(),
+            'isAdmin': true,
+          });
+          _loggedInUserKey = newRef.key;
+        }
+      } catch (_) {
+        _loggedInUserKey = null;
+      }
+      await _persistLoginState();
+      return;
+    }
+
     final usersRef = await _getUsersRef();
-    // Load entire users node and find by email in code (avoids orderByChild + index,
-    // and avoids SDK String/Map errors when DB has mixed data).
     Map<String, dynamic>? data;
+    String? userKey;
     try {
       final snapshot = await usersRef.get();
       if (!snapshot.exists || snapshot.children.isEmpty) {
@@ -278,10 +341,11 @@ class AuthService {
           final raw = child.value;
           if (raw is! Map) continue;
           try {
-            final map = Map<String, dynamic>.from(raw as Map);
+            final map = Map<String, dynamic>.from(raw);
             final em = map['email'];
             if (em is String && em.trim().toLowerCase() == emailLower) {
               data = map;
+              userKey = child.key;
               break;
             }
           } catch (_) {
@@ -322,12 +386,16 @@ class AuthService {
     _loggedInEmail = emailLower;
     final name = data['name'];
     _loggedInUserName = (name is String && name.isNotEmpty) ? name : null;
+    _loggedInUserKey = userKey;
+    _isAdmin = data['isAdmin'] == true;
     await _persistLoginState();
   }
 
   Future<void> logout() async {
     _loggedInEmail = null;
     _loggedInUserName = null;
+    _loggedInUserKey = null;
+    _isAdmin = false;
     await _clearPersistedLoginState();
   }
 }

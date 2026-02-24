@@ -1,186 +1,251 @@
 // =============================================================================
-// DIRECT PYTHON-TO-FLUTTER PORT — SOURCE OF TRUTH: test_tflite.py
-// =============================================================================
-// This file converts the Python TFLite inference logic EXACTLY AS-IS.
-// No preprocessing logic, normalization, tensor shapes, or data types were
-// changed. No optimizations or extra abstractions were added.
-// Python equivalent:
-//   interpreter = tf.lite.Interpreter(model_path="plant_disease_mobilenet.tflite")
-//   interpreter.allocate_tensors()
-//   img = load_img(img_path, target_size=(224, 224))
-//   x = img_to_array(img) / 255.0
-//   x = np.expand_dims(x, axis=0).astype(np.float32)
-//   interpreter.set_tensor(input_details[0]['index'], x)
-//   interpreter.invoke()
-//   output_data = interpreter.get_tensor(output_details[0]['index'])
-//   predictions = output_data[0]
-//   idx = argmax(predictions); confidence = max(predictions)
+// ML service: on-device ONNX (no server) or fallback to HTTP inference server.
+// Run ml_server/export_onnx.py once to create assets/model/best.onnx and
+// assets/data/class_names.json; then the app runs inference locally.
 // =============================================================================
 
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_onnxruntime/flutter_onnxruntime.dart';
+import 'package:http/http.dart' as http;
 import 'package:image/image.dart' as img;
-import 'package:tflite_flutter/tflite_flutter.dart';
 
-/// ML service: direct port of Python TFLite inference for plant_disease_mobilenet.tflite.
+/// Base URL of the inference server (used only when on-device ONNX is not available).
+const String _inferenceBaseUrl = 'http://10.0.2.2:8000';
+
+const Duration _analysisTimeout = Duration(seconds: 90);
+
+/// Default input size for ONNX model (must match export_onnx.py imgsz).
+/// Detection models use 640; classification use 224.
+const int _onnxInputSize = 640;
+
 class MlService {
-  static const _modelPath = 'assets/model/plant_disease_mobilenet.tflite';
-  static const _labelsPath = 'assets/labels/labels.txt';
+  final String baseUrl;
+  bool _initialized = false;
+  bool _useOnDevice = false;
+  OrtSession? _onnxSession;
+  Map<int, String> _classNames = {};
+  String _onnxInputName = 'images';
+  String _onnxOutputName = 'output0';
 
-  Interpreter? _interpreter;
-  List<String> _labels = [];
+  MlService({String? baseUrl}) : baseUrl = baseUrl ?? _inferenceBaseUrl;
 
-  static const int _inputSize = 224;
-
-  bool get isReady => _interpreter != null;
+  bool get isReady => _initialized;
+  bool get useOnDevice => _useOnDevice;
 
   Future<void> init() async {
-    if (_interpreter != null) return;
-    _interpreter = await Interpreter.fromAsset(_modelPath);
-    _labels = await _loadLabels();
+    try {
+      await _loadOnDeviceModel();
+      if (_useOnDevice) {
+        _initialized = true;
+        if (kDebugMode) debugPrint('[MlService] On-device ONNX model ready (no server needed).');
+        return;
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('[MlService] On-device model not used: $e');
+    }
+
+    try {
+      final res = await http.get(Uri.parse('$baseUrl/health')).timeout(
+        const Duration(seconds: 8),
+        onTimeout: () => throw Exception('Server timeout'),
+      );
+      if (res.statusCode == 200) {
+        _initialized = true;
+        if (kDebugMode) debugPrint('[MlService] best.pt server ready: $baseUrl');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[MlService] Server not reached. Run ml_server or export ONNX: $e');
+      }
+    }
   }
 
-  Future<List<String>> _loadLabels() async {
-    final raw = await rootBundle.loadString(_labelsPath);
-    return raw
-        .split('\n')
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty && !e.startsWith('#'))
-        .toList();
+  Future<void> _loadOnDeviceModel() async {
+    final ort = OnnxRuntime();
+    final session = await ort.createSessionFromAsset('assets/model/best.onnx');
+    final namesData = await rootBundle.load('assets/data/class_names.json');
+    final namesJson = utf8.decode(namesData.buffer.asUint8List());
+    final map = jsonDecode(namesJson) as Map<dynamic, dynamic>;
+    final classNames = <int, String>{};
+    for (final e in map.entries) {
+      classNames[int.parse(e.key.toString())] = e.value.toString();
+    }
+    _onnxSession = session;
+    _classNames = classNames;
+    _useOnDevice = true;
+    try {
+      final inNames = session.inputNames;
+      if (inNames.isNotEmpty) _onnxInputName = inNames.first;
+      final outNames = session.outputNames;
+      if (outNames.isNotEmpty) _onnxOutputName = outNames.first;
+    } catch (_) {}
   }
 
-  /// Preprocessing: EXACT Python equivalent.
-  /// - Resize to 224×224 (target_size=(224, 224))
-  /// - Channel order: set _useBGR true if model was trained with OpenCV/BGR.
-  ///   Compare "[TFLite] First 30 input values" with Python: print(x.flatten()[:30].tolist())
-  /// - Normalize: pixel / 255.0 (float32)
-  /// - Shape: [1, 224, 224, 3] (expand_dims(..., axis=0))
-  /// Set true if model expects BGR (e.g. OpenCV training); false for Keras/PIL RGB.
-  static const bool _useBGR = true;
-
-  List<List<List<List<double>>>> preprocessImage(img.Image image) {
-    final resized = img.copyResize(
-      image,
-      width: _inputSize,
-      height: _inputSize,
-      interpolation: img.Interpolation.nearest,
-    );
-    final r = 255.0;
-    final x = List.generate(
-      1,
-      (_) => List.generate(
-        _inputSize,
-        (y) => List.generate(
-          _inputSize,
-          (xi) {
-            final pixel = resized.getPixel(xi, y);
-            if (_useBGR) {
-              return <double>[
-                pixel.b / r,
-                pixel.g / r,
-                pixel.r / r,
-              ];
-            }
-            return <double>[
-              pixel.r / r,
-              pixel.g / r,
-              pixel.b / r,
-            ];
-          },
-        ),
-      ),
-    );
-    return x;
-  }
-
-  /// Runs inference: same flow as Python (set_tensor → invoke → get_tensor, argmax, max).
-  /// Returns: [predictedIndex, confidence, rawOutputArray].
-  /// Raw output array is the same as Python: predictions = output_data[0].
-  Future<InferenceResult> runInference(File imageFile) async {
-    if (_interpreter == null) await init();
-    if (_interpreter == null) throw Exception('Interpreter not initialized');
-
-    final inputTensor = _interpreter!.getInputTensor(0);
-    final outputTensor = _interpreter!.getOutputTensor(0);
-
-    // --- DEBUG (mandatory): comparable with Python ---
-    final inputShape = inputTensor.shape;
-    final outputShape = outputTensor.shape;
-    debugPrint('[TFLite] Input tensor shape: $inputShape');
-    debugPrint('[TFLite] Output tensor shape: $outputShape');
-
+  /// Returns [label, confidence, isUncertain].
+  Future<List<dynamic>> detect(File imageFile) async {
     final bytes = await imageFile.readAsBytes();
-    img.Image? decoded = img.decodeImage(bytes);
-    if (decoded == null) throw Exception('Could not decode image');
-    // Match Python: load_img does not apply EXIF orientation
-
-    final input = preprocessImage(decoded);
-    final numClasses = outputShape.length == 2 ? outputShape[1] : outputShape[0];
-    final output = List.generate(1, (_) => List.filled(numClasses, 0.0));
-
-    _dumpFirstInputValues(input);
-
-    _interpreter!.run(input, output);
-
-    final predictions = output[0];
-
-    final predictedIndex = _argMax(predictions);
-    final confidence = predictions[predictedIndex];
-
-    // --- DEBUG: first 5 output values, predicted index, confidence ---
-    final first5 = predictions.length >= 5
-        ? predictions.sublist(0, 5)
-        : predictions;
-    debugPrint('[TFLite] First 5 output values: $first5');
-    debugPrint('[TFLite] Predicted index: $predictedIndex');
-    debugPrint('[TFLite] Confidence: $confidence');
-
-    return InferenceResult(
-      predictedIndex: predictedIndex,
-      confidence: confidence,
-      rawOutput: predictions,
-    );
+    if (bytes.isEmpty) {
+      throw Exception('Image file is empty. Please choose a valid image.');
+    }
+    if (_useOnDevice && _onnxSession != null) {
+      return _runOnDevice(bytes);
+    }
+    return _runViaServer(bytes, imageFile.path.split(RegExp(r'[/\\]')).last);
   }
 
-  void _dumpFirstInputValues(List<List<List<List<double>>>> input) {
-    final flat = <double>[];
-    for (var b = 0; b < input.length && flat.length < 30; b++) {
-      for (var y = 0; y < input[b].length && flat.length < 30; y++) {
-        for (var x = 0; x < input[b][y].length && flat.length < 30; x++) {
-          flat.addAll(input[b][y][x]);
+  Future<List<dynamic>> _runOnDevice(List<int> bytes) async {
+    final session = _onnxSession!;
+    final decoded = img.decodeImage(Uint8List.fromList(bytes));
+    if (decoded == null) {
+      throw Exception('Could not decode image. Please choose another image.');
+    }
+    final resized = img.copyResize(decoded, width: _onnxInputSize, height: _onnxInputSize);
+    // NCHW, float32, 0..1
+    final floats = <double>[];
+    for (var c = 0; c < 3; c++) {
+      for (var y = 0; y < _onnxInputSize; y++) {
+        for (var x = 0; x < _onnxInputSize; x++) {
+          final pixel = resized.getPixel(x, y);
+          final v = c == 0 ? pixel.r : (c == 1 ? pixel.g : pixel.b);
+          floats.add(v / 255.0);
         }
       }
     }
-    debugPrint('[TFLite] First 30 input values (NHWC): $flat');
+    OrtValue? inputTensor;
+    try {
+      inputTensor = await OrtValue.fromList(floats, [1, 3, _onnxInputSize, _onnxInputSize]);
+      final inputs = {_onnxInputName: inputTensor};
+      final outputs = await session.run(inputs);
+      inputTensor.dispose();
+      final outputTensor = outputs[_onnxOutputName];
+      if (outputTensor == null) {
+        throw Exception('On-device model returned no output.');
+      }
+      final outputList = await outputTensor.asList();
+      outputTensor.dispose();
+      if (outputList.isEmpty) {
+        throw Exception('On-device model output empty.');
+      }
+      final raw = outputList is List<double> ? outputList : List<double>.from(outputList as List<num>);
+      final numClasses = _classNames.length;
+      int topIdx;
+      double maxVal;
+      // YOLO detection: shape (1, 4+numClasses, 8400) -> take max over class scores
+      if (raw.length > 1000 && numClasses > 0) {
+        const int numBoxes = 8400;
+        final numRows = 4 + numClasses; // 4 box + class scores
+        if (raw.length >= numRows * numBoxes) {
+          topIdx = 0;
+          maxVal = 0.0;
+          for (var c = 0; c < numClasses; c++) {
+            final base = (4 + c) * numBoxes;
+            for (var b = 0; b < numBoxes; b++) {
+              final v = raw[base + b];
+              if (v > maxVal) {
+                maxVal = v;
+                topIdx = c;
+              }
+            }
+          }
+        } else {
+          topIdx = 0;
+          maxVal = raw.isNotEmpty ? raw[0] : 0.0;
+          for (var i = 1; i < raw.length && i < numClasses; i++) {
+            if (raw[i] > maxVal) {
+              maxVal = raw[i];
+              topIdx = i;
+            }
+          }
+        }
+      } else {
+        // Classification: output [1, num_classes]
+        topIdx = 0;
+        maxVal = raw.isNotEmpty ? raw[0] : 0.0;
+        for (var i = 1; i < raw.length; i++) {
+          if (raw[i] > maxVal) {
+            maxVal = raw[i];
+            topIdx = i;
+          }
+        }
+      }
+      final label = _classNames[topIdx] ?? 'Class_$topIdx';
+      final confidence = maxVal.clamp(0.0, 1.0);
+      final isUncertain = confidence < 0.5 || confidence < 0.15;
+      return [label, confidence, isUncertain];
+    } catch (e) {
+      inputTensor?.dispose();
+      rethrow;
+    }
   }
 
-  int _argMax(List<double> values) {
-    int idx = 0;
-    double best = values[0];
-    for (int i = 1; i < values.length; i++) {
-      if (values[i] > best) {
-        best = values[i];
-        idx = i;
+  Future<List<dynamic>> _runViaServer(List<int> bytes, String fileName) async {
+    final uri = Uri.parse('$baseUrl/predict');
+    Object? lastError;
+    for (var attempt = 0; attempt < 2; attempt++) {
+      if (attempt > 0) {
+        await Future<void>.delayed(const Duration(seconds: 2));
+        if (kDebugMode) debugPrint('[MlService] Retrying analysis after timeout…');
+      }
+      try {
+        return await _sendPredictRequest(uri, bytes, fileName.isEmpty ? 'image.jpg' : fileName);
+      } on TimeoutException catch (e) {
+        lastError = e;
+        if (attempt == 1) {
+          throw Exception(
+            'Analysis timed out. Start the server (ml_server) or use on-device model (run export_onnx.py).',
+          );
+        }
+      } on SocketException {
+        throw Exception(
+          'Cannot reach the analysis server. Start it (uvicorn in ml_server) or export ONNX for on-device inference.',
+        );
+      } on http.ClientException catch (e) {
+        final msg = e.message.toLowerCase();
+        if (msg.contains('connection refused') || msg.contains('failed host lookup')) {
+          throw Exception(
+            'Analysis server is not running. Start it in ml_server or use on-device model (export_onnx.py).',
+          );
+        }
+        throw Exception('Network error: ${e.message}');
+      } on FormatException {
+        throw Exception('Invalid response from server. Restart the server and try again.');
+      } on Exception {
+        rethrow;
       }
     }
-    return idx;
+    throw lastError is Exception ? lastError : Exception('Analysis failed. Please try again.');
   }
 
-  /// Convenience for UI: runs inference and returns [label, confidence, isUncertain].
-  Future<List<dynamic>> detect(File imageFile) async {
-    if (_interpreter == null) await init();
-    final result = await runInference(imageFile);
-    final label = result.predictedIndex < _labels.length
-        ? _labels[result.predictedIndex]
-        : 'Class_${result.predictedIndex}';
-    final isUncertain = result.confidence < 0.5 || result.confidence < 0.15;
-    return [label, result.confidence, isUncertain];
+  Future<List<dynamic>> _sendPredictRequest(Uri uri, List<int> bytes, String fileName) async {
+    final multipart = http.MultipartRequest('POST', uri);
+    multipart.files.add(http.MultipartFile.fromBytes('file', bytes, filename: fileName));
+    final streamed = await multipart.send().timeout(
+      _analysisTimeout,
+      onTimeout: () => throw TimeoutException('Analysis timed out'),
+    );
+    final response = await http.Response.fromStream(streamed);
+    if (response.statusCode != 200) {
+      final body = response.body;
+      String msg = body.isNotEmpty ? body : 'Server error ${response.statusCode}';
+      if (response.statusCode == 400) msg = 'Invalid image. Please choose a clear photo of a crop leaf.';
+      if (response.statusCode >= 500) msg = 'Analysis server error. Try again or restart the server.';
+      throw Exception(msg);
+    }
+    final json = Map<String, dynamic>.from(jsonDecode(response.body) as Map);
+    final label = json['label'] as String? ?? 'Unknown';
+    final confidence = (json['confidence'] is num) ? (json['confidence'] as num).toDouble() : 0.0;
+    final isUncertain = confidence < 0.5 || confidence < 0.15;
+    return [label, confidence, isUncertain];
   }
 }
 
-/// Result of inference: direct port of Python outputs (idx, confidence, predictions).
+/// Result of inference (for compatibility if anything used runInference).
 class InferenceResult {
   final int predictedIndex;
   final double confidence;

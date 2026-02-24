@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 /// Professional light and dark themes for Crop Disease Detector.
+/// Uses default system/Material fonts so the app works offline (no network font fetch).
 /// Palette: nature greens with teal–emerald gradients, amber for alerts.
 class AppTheme {
   AppTheme._();
@@ -9,8 +9,8 @@ class AppTheme {
   // —— Gradient colors (professional agriculture / nature) ——
   static const Color _gradientStartLight = Color(0xFF00695C);   // Teal
   static const Color _gradientEndLight = Color(0xFF2E7D32);     // Forest green
-  static const Color _gradientStartDark = Color(0xFF004D40);
-  static const Color _gradientEndDark = Color(0xFF1B5E20);
+  static const Color _gradientStartDark = Color(0xFF00897B);
+  static const Color _gradientEndDark = Color(0xFF43A047);
 
   /// Primary gradient for app bar, hero, and primary actions (light).
   static const LinearGradient primaryGradientLight = LinearGradient(
@@ -24,7 +24,7 @@ class AppTheme {
   static const LinearGradient primaryGradientDark = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF00897B), Color(0xFF43A047)],
+    colors: [_gradientStartDark, _gradientEndDark],
     stops: [0.0, 1.0],
   );
 
@@ -149,7 +149,7 @@ class AppTheme {
         scrolledUnderElevation: 0.5,
         backgroundColor: colorScheme.surface,
         foregroundColor: colorScheme.onSurface,
-        titleTextStyle: GoogleFonts.plusJakartaSans(
+        titleTextStyle: TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.w600,
           color: colorScheme.onSurface,
@@ -175,7 +175,7 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
-          textStyle: GoogleFonts.plusJakartaSans(
+          textStyle: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
           ),
@@ -188,7 +188,7 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
-          textStyle: GoogleFonts.plusJakartaSans(
+          textStyle: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
           ),
@@ -196,7 +196,7 @@ class AppTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          textStyle: GoogleFonts.plusJakartaSans(
+          textStyle: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
           ),
@@ -212,7 +212,7 @@ class AppTheme {
           borderRadius: BorderRadius.circular(12),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        titleTextStyle: GoogleFonts.plusJakartaSans(
+        titleTextStyle: const TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w500,
         ),
@@ -223,7 +223,7 @@ class AppTheme {
         circularTrackColor: colorScheme.surfaceContainerHighest,
       ),
       dividerTheme: DividerThemeData(
-        color: colorScheme.outlineVariant.withOpacity(0.5),
+        color: colorScheme.outlineVariant.withValues(alpha: 0.5),
         thickness: 1,
         space: 1,
       ),
@@ -280,7 +280,7 @@ class AppTheme {
         scrolledUnderElevation: 0.5,
         backgroundColor: colorScheme.surface,
         foregroundColor: colorScheme.onSurface,
-        titleTextStyle: GoogleFonts.plusJakartaSans(
+        titleTextStyle: TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.w600,
           color: colorScheme.onSurface,
@@ -306,7 +306,7 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
-          textStyle: GoogleFonts.plusJakartaSans(
+          textStyle: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
           ),
@@ -319,7 +319,7 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
-          textStyle: GoogleFonts.plusJakartaSans(
+          textStyle: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
           ),
@@ -327,7 +327,7 @@ class AppTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          textStyle: GoogleFonts.plusJakartaSans(
+          textStyle: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
           ),
@@ -343,7 +343,7 @@ class AppTheme {
           borderRadius: BorderRadius.circular(12),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        titleTextStyle: GoogleFonts.plusJakartaSans(
+        titleTextStyle: const TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w500,
         ),
@@ -354,7 +354,7 @@ class AppTheme {
         circularTrackColor: colorScheme.surfaceContainerHighest,
       ),
       dividerTheme: DividerThemeData(
-        color: colorScheme.outlineVariant.withOpacity(0.5),
+        color: colorScheme.outlineVariant.withValues(alpha: 0.5),
         thickness: 1,
         space: 1,
       ),
@@ -372,7 +372,7 @@ class AppTheme {
   static TextTheme _textThemeLight() {
     const onSurface = Color(0xFF1A1D19);
     const onSurfaceVariant = Color(0xFF414941);
-    final base = GoogleFonts.plusJakartaSansTextTheme();
+    final base = Typography.material2021().black;
     return TextTheme(
       displayLarge: base.displayLarge?.copyWith(color: onSurface, fontWeight: FontWeight.w700),
       displayMedium: base.displayMedium?.copyWith(color: onSurface, fontWeight: FontWeight.w700),
@@ -396,7 +396,7 @@ class AppTheme {
   static TextTheme _textThemeDark() {
     const onSurface = Color(0xFFE3E6E1);
     const onSurfaceVariant = Color(0xFFC1C9C0);
-    final base = GoogleFonts.plusJakartaSansTextTheme();
+    final base = Typography.material2021().white;
     return TextTheme(
       displayLarge: base.displayLarge?.copyWith(color: onSurface, fontWeight: FontWeight.w700),
       displayMedium: base.displayMedium?.copyWith(color: onSurface, fontWeight: FontWeight.w700),

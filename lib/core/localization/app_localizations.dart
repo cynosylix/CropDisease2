@@ -59,6 +59,9 @@ class AppLocalizations {
       'passwordsDoNotMatch': 'Passwords do not match',
       'hello': 'Hello',
       'loggedInAs': 'Logged in as',
+      'admin': 'Admin',
+      'notAPlantLeaf': 'Not a plant leaf',
+      'notAPlantLeafMessage': 'This doesn\'t look like a plant leaf. Please use a clear photo of a crop or plant leaf for accurate detection.',
     },
     'ml': {
       'appTitle': 'വിള രോഗനിർണയം',
@@ -103,6 +106,9 @@ class AppLocalizations {
       'passwordsDoNotMatch': 'പാസ്‌വേഡുകൾ യോജിക്കുന്നില്ല',
       'hello': 'നമസ്കാരം',
       'loggedInAs': 'ലോഗിൻ ചെയ്തത്',
+      'admin': 'അഡ്മിൻ',
+      'notAPlantLeaf': 'ചെടിയില അല്ല',
+      'notAPlantLeafMessage': 'ഇത് ഒരു ചെടിയില പോലെ തോന്നുന്നില്ല. കൃത്യമായ നിർണയത്തിന് വിളയുടെയോ ചെടിയിലയുടെയോ ഫോട്ടോ ഉപയോഗിക്കുക.',
     },
     'hi': {
       'appTitle': 'फसल रोग पहचान',
@@ -147,6 +153,9 @@ class AppLocalizations {
       'passwordsDoNotMatch': 'पासवर्ड मेल नहीं खाते',
       'hello': 'नमस्ते',
       'loggedInAs': 'लॉग इन',
+      'admin': 'व्यवस्थापक',
+      'notAPlantLeaf': 'पौधे की पत्ती नहीं',
+      'notAPlantLeafMessage': 'यह पौधे की पत्ती जैसा नहीं दिखता। सही पहचान के लिए फसल या पौधे की पत्ती की साफ फोटो लें।',
     },
     'ta': {
       'appTitle': 'பயிர் நோய் கண்டறிதல்',
@@ -192,6 +201,9 @@ class AppLocalizations {
       'passwordsDoNotMatch': 'கடவுச்சொற்கள் பொருந்தவில்லை',
       'hello': 'வணக்கம்',
       'loggedInAs': 'உள்நுழைந்துள்ளார்',
+      'admin': 'நிர்வாகி',
+      'notAPlantLeaf': 'தாவர இலை அல்ல',
+      'notAPlantLeafMessage': 'இது தாவர இலை போல் தெரியவில்லை. துல்லியமான கண்டறிதலுக்கு பயிர் அல்லது தாவர இலையின் தெளிவான படத்தைப் பயன்படுத்துங்கள்.',
     },
   };
 
@@ -241,5 +253,8 @@ class AppLocalizations {
   String get passwordsDoNotMatch => _t('passwordsDoNotMatch');
   String get hello => _t('hello');
   String get loggedInAs => _t('loggedInAs');
+  String get admin => _t('admin');
+  String get notAPlantLeaf => _t('notAPlantLeaf');
+  String get notAPlantLeafMessage => _t('notAPlantLeafMessage');
 }
 

@@ -28,7 +28,6 @@ dependencies:
 
   # Icons
   cupertino_icons: ^1.0.8
-  google_fonts: ^6.2.1
 
   # Localization
   flutter_localizations:
@@ -42,8 +41,9 @@ dependencies:
   # Persist login state (one-time login until user logs out)
   shared_preferences: ^2.2.2
 
-  # ML and image handling
-  tflite_flutter: ^0.12.1
+  # ML: on-device ONNX (no server) or fallback to HTTP inference server.
+  flutter_onnxruntime: ^1.6.3
+  http: ^1.2.0
   image_picker: ^1.1.2
   image: ^4.2.0
 
@@ -52,6 +52,15 @@ dev_dependencies:
     sdk: flutter
 
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+
+# App icon (eco/leaf icon matching About screen) — run: dart run tools/generate_app_icon.dart then: dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/icons/app_icon.png
+  adaptive_icon_background: "#2E7D32"
+  adaptive_icon_foreground: assets/icons/app_icon.png
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -61,7 +70,9 @@ flutter:
 
   uses-material-design: true
   assets:
-    - assets/model/plant_disease_mobilenet.tflite
     - assets/labels/labels.txt
     - assets/test/tflite_test_image.jpg
+    - assets/icons/app_icon.png
+    - assets/model/
+    - assets/data/
 

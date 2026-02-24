@@ -51,8 +51,8 @@ class AboutScreen extends StatelessWidget {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      theme.colorScheme.primary.withOpacity(0.15),
-                      theme.colorScheme.primary.withOpacity(0.05),
+                      theme.colorScheme.primary.withValues(alpha: 0.15),
+                      theme.colorScheme.primary.withValues(alpha: 0.05),
                     ],
                   ),
                   shape: BoxShape.circle,
@@ -79,7 +79,7 @@ class AboutScreen extends StatelessWidget {
                   color: theme.colorScheme.surfaceContainerLow,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: theme.colorScheme.outlineVariant.withOpacity(0.5),
+                    color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
                   ),
                 ),
                 child: Text(

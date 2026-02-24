@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../services/auth_service.dart';
+import '../../../admin/presentation/screens/admin_dashboard_screen.dart';
 import 'about_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -75,7 +76,7 @@ class SettingsScreen extends StatelessWidget {
                             color: theme.colorScheme.surfaceContainerLow,
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                              color: theme.colorScheme.outlineVariant.withOpacity(0.5),
+                              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
                             ),
                           ),
                           child: Row(
@@ -83,7 +84,7 @@ class SettingsScreen extends StatelessWidget {
                               Container(
                                 padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
-                                  color: theme.colorScheme.primary.withOpacity(0.12),
+                                  color: theme.colorScheme.primary.withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: Icon(
@@ -144,7 +145,7 @@ class SettingsScreen extends StatelessWidget {
                 color: theme.colorScheme.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: theme.colorScheme.outlineVariant.withOpacity(0.5),
+                  color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
                 ),
               ),
               child: Column(
@@ -158,7 +159,7 @@ class SettingsScreen extends StatelessWidget {
                     isFirst: true,
                     isLast: false,
                   ),
-                  Divider(height: 1, color: theme.colorScheme.outlineVariant.withOpacity(0.4)),
+                  Divider(height: 1, color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4)),
                   _LanguageTile(
                     title: loc.langMalayalam,
                     value: const Locale('ml'),
@@ -168,7 +169,7 @@ class SettingsScreen extends StatelessWidget {
                     isFirst: false,
                     isLast: false,
                   ),
-                  Divider(height: 1, color: theme.colorScheme.outlineVariant.withOpacity(0.4)),
+                  Divider(height: 1, color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4)),
                   _LanguageTile(
                     title: loc.langHindi,
                     value: const Locale('hi'),
@@ -178,7 +179,7 @@ class SettingsScreen extends StatelessWidget {
                     isFirst: false,
                     isLast: false,
                   ),
-                  Divider(height: 1, color: theme.colorScheme.outlineVariant.withOpacity(0.4)),
+                  Divider(height: 1, color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4)),
                   _LanguageTile(
                     title: loc.langTamil,
                     value: const Locale('ta'),
@@ -191,6 +192,83 @@ class SettingsScreen extends StatelessWidget {
                 ],
               ),
             ),
+            if (authService.isAdmin) ...[
+              const SizedBox(height: 32),
+              Padding(
+                padding: const EdgeInsets.only(left: 4, bottom: 10),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.admin_panel_settings_rounded,
+                      size: 20,
+                      color: theme.colorScheme.primary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      loc.admin,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+                  ),
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const AdminDashboardScreen(),
+                        ),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(20),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              Icons.admin_panel_settings_rounded,
+                              color: theme.colorScheme.primary,
+                              size: 24,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Text(
+                              loc.admin,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          Icon(
+                            Icons.chevron_right_rounded,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
             if (onLogout != null) ...[
               const SizedBox(height: 32),
               Padding(
@@ -218,7 +296,7 @@ class SettingsScreen extends StatelessWidget {
                   color: theme.colorScheme.surfaceContainerLow,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: theme.colorScheme.outlineVariant.withOpacity(0.5),
+                    color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
                   ),
                 ),
                 child: Material(
@@ -238,7 +316,7 @@ class SettingsScreen extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: theme.colorScheme.errorContainer.withOpacity(0.5),
+                              color: theme.colorScheme.errorContainer.withValues(alpha: 0.5),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Icon(
@@ -294,7 +372,7 @@ class SettingsScreen extends StatelessWidget {
                 color: theme.colorScheme.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: theme.colorScheme.outlineVariant.withOpacity(0.5),
+                  color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
                 ),
               ),
               child: Material(
@@ -315,7 +393,7 @@ class SettingsScreen extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: theme.colorScheme.primary.withOpacity(0.12),
+                          color: theme.colorScheme.primary.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(
@@ -389,7 +467,9 @@ class _LanguageTile extends StatelessWidget {
           ),
         ),
         value: value,
+        // ignore: deprecated_member_use
         groupValue: groupValue,
+        // ignore: deprecated_member_use
         onChanged: (v) {
           if (v != null) onChanged(v);
         },
