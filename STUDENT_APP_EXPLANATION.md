@@ -46,7 +46,7 @@ Put `leaf_disease_model.tflite` in `assets/model/`. Keep the terminal open.
 
 ## Login
 - **Students:** Register or Login (email, password, name).
-- **Admin:** Login with `admin@cropdisease.com` / `Admin123` → Admin Dashboard (users, their history).
+- **Admin:** Create an admin in your Firebase project (see **ADMIN_SETUP.md**), then log in with that email/password → Admin Dashboard (users, their history).
 
 ## Logo (launcher & splash)
 - Run `dart run tools/generate_app_icon.dart` then `dart run flutter_launcher_icons`. Uninstall and reinstall the app so the launcher icon updates.
