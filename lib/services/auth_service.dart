@@ -7,14 +7,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Auth backed by Firebase Realtime Database.
 /// - Users are stored under the `users` node in Realtime DB.
 /// - Login state is persisted: user stays logged in until they tap Logout.
-/// - Admin: set `isAdmin: true` on a user record in Firebase, or use the built-in
-///   default admin (admin@cropdisease.com / Admin@123) to see the Admin dashboard.
+/// - Admin: only the user(s) with `isAdmin: true` in Firebase can see the Admin dashboard.
+///   Create your admin in Firebase (or register in app then set isAdmin in DB).
 class AuthService {
   AuthService({SharedPreferences? prefs}) : _prefs = prefs;
-
-  /// Built-in default admin. Login with this email and password to get admin access.
-  static const String defaultAdminEmail = 'admin@cropdisease.com';
-  static const String defaultAdminPassword = 'Admin@123';
 
   static const _usersPath = 'users';
   static const _prefKeyEmail = 'auth_logged_in_email';
@@ -287,47 +283,6 @@ class AuthService {
   }) async {
     final emailLower = email.trim().toLowerCase();
     final passwordTrimmed = password.trim();
-
-    // Built-in default admin: same login page, no Firebase setup needed.
-    if (emailLower == defaultAdminEmail && passwordTrimmed == defaultAdminPassword) {
-      _loggedInEmail = defaultAdminEmail;
-      _loggedInUserName = 'Admin';
-      _isAdmin = true;
-      try {
-        final usersRef = await _getUsersRef();
-        final snapshot = await usersRef.get();
-        String? existingKey;
-        if (snapshot.exists && snapshot.children.isNotEmpty) {
-          for (final child in snapshot.children) {
-            final raw = child.value;
-            if (raw is! Map) continue;
-            final map = Map<String, dynamic>.from(raw);
-            final em = map['email'];
-            if (em is String && em.trim().toLowerCase() == defaultAdminEmail) {
-              existingKey = child.key;
-              break;
-            }
-          }
-        }
-        if (existingKey != null) {
-          _loggedInUserKey = existingKey;
-        } else {
-          final newRef = usersRef.push();
-          await newRef.set({
-            'name': 'Admin',
-            'email': defaultAdminEmail,
-            'password': defaultAdminPassword,
-            'createdAt': DateTime.now().toIso8601String(),
-            'isAdmin': true,
-          });
-          _loggedInUserKey = newRef.key;
-        }
-      } catch (_) {
-        _loggedInUserKey = null;
-      }
-      await _persistLoginState();
-      return;
-    }
 
     final usersRef = await _getUsersRef();
     Map<String, dynamic>? data;

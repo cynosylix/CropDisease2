@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Splash: same app icon and green as About / app icon -->
+<!-- Splash: same logo as launcher (splash_logo from tools/generate_app_icon.dart) -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:drawable="@color/ic_launcher_background" />
     <item>
         <inset
-            android:drawable="@drawable/ic_launcher_foreground"
-            android:inset="25%" />
+            android:drawable="@drawable/splash_logo"
+            android:inset="16%" />
     </item>
 </layer-list>

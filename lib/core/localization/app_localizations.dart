@@ -60,8 +60,19 @@ class AppLocalizations {
       'hello': 'Hello',
       'loggedInAs': 'Logged in as',
       'admin': 'Admin',
-      'notAPlantLeaf': 'Not a plant leaf',
-      'notAPlantLeafMessage': 'This doesn\'t look like a plant leaf. Please use a clear photo of a crop or plant leaf for accurate detection.',
+      'notAPlantLeaf': 'Not a crop leaf',
+      'notAPlantLeafMessage':
+          'This doesn\'t look like a crop leaf. Please use a clear photo of a leaf for accurate disease detection.',
+      'noLeafDetected': 'No leaf detected',
+      'noLeafDetectedMessage':
+          'We couldn\'t detect a leaf in this image. Please use a clear, well-lit photo of a single crop leaf.',
+      'analyzeTab': 'Analyze',
+      'historyTab': 'History',
+      'previousAnalyses': 'Previous analyses',
+      'noPreviousAnalyses':
+          'No previous analyses yet. Analyze a leaf photo to see results here.',
+      'serverUrlLabel': 'Analysis server URL',
+      'serverUrlHint': 'e.g. http://192.168.1.5:8000 (for physical device)',
     },
     'ml': {
       'appTitle': 'വിള രോഗനിർണയം',
@@ -107,8 +118,14 @@ class AppLocalizations {
       'hello': 'നമസ്കാരം',
       'loggedInAs': 'ലോഗിൻ ചെയ്തത്',
       'admin': 'അഡ്മിൻ',
-      'notAPlantLeaf': 'ചെടിയില അല്ല',
-      'notAPlantLeafMessage': 'ഇത് ഒരു ചെടിയില പോലെ തോന്നുന്നില്ല. കൃത്യമായ നിർണയത്തിന് വിളയുടെയോ ചെടിയിലയുടെയോ ഫോട്ടോ ഉപയോഗിക്കുക.',
+      'notAPlantLeaf': 'വിളയില അല്ല',
+      'notAPlantLeafMessage':
+          'ഇത് വിളയില പോലെ തോന്നുന്നില്ല. കൃത്യമായ രോഗനിർണയത്തിന് ഒരു ഇലയുടെ വ്യക്തമായ ഫോട്ടോ ഉപയോഗിക്കുക.',
+      'noLeafDetected': 'ഇല കണ്ടെത്തിയില്ല',
+      'noLeafDetectedMessage':
+          'ഈ ചിത്രത്തിൽ ഒരു ഇല കണ്ടെത്താൻ കഴിഞ്ഞില്ല. ഒരൊറ്റ വിളയിലയുടെ വ്യക്തവും പ്രകാശമുള്ളതുമായ ഫോട്ടോ ഉപയോഗിക്കുക.',
+      'serverUrlLabel': 'Analysis server URL',
+      'serverUrlHint': 'e.g. http://192.168.1.5:8000 (for physical device)',
     },
     'hi': {
       'appTitle': 'फसल रोग पहचान',
@@ -154,8 +171,14 @@ class AppLocalizations {
       'hello': 'नमस्ते',
       'loggedInAs': 'लॉग इन',
       'admin': 'व्यवस्थापक',
-      'notAPlantLeaf': 'पौधे की पत्ती नहीं',
-      'notAPlantLeafMessage': 'यह पौधे की पत्ती जैसा नहीं दिखता। सही पहचान के लिए फसल या पौधे की पत्ती की साफ फोटो लें।',
+      'notAPlantLeaf': 'फसल की पत्ती नहीं',
+      'notAPlantLeafMessage':
+          'यह फसल की पत्ती जैसा नहीं दिखता। सही रोग पहचान के लिए पत्ती की साफ फोटो लें।',
+      'noLeafDetected': 'पत्ती नहीं मिली',
+      'noLeafDetectedMessage':
+          'इस तस्वीर में पत्ती नहीं दिखी। कृपया एक ही फसल पत्ती की साफ, रोशन फोटो लें।',
+      'serverUrlLabel': 'Analysis server URL',
+      'serverUrlHint': 'e.g. http://192.168.1.5:8000 (for physical device)',
     },
     'ta': {
       'appTitle': 'பயிர் நோய் கண்டறிதல்',
@@ -202,8 +225,14 @@ class AppLocalizations {
       'hello': 'வணக்கம்',
       'loggedInAs': 'உள்நுழைந்துள்ளார்',
       'admin': 'நிர்வாகி',
-      'notAPlantLeaf': 'தாவர இலை அல்ல',
-      'notAPlantLeafMessage': 'இது தாவர இலை போல் தெரியவில்லை. துல்லியமான கண்டறிதலுக்கு பயிர் அல்லது தாவர இலையின் தெளிவான படத்தைப் பயன்படுத்துங்கள்.',
+      'notAPlantLeaf': 'பயிர் இலை அல்ல',
+      'notAPlantLeafMessage':
+          'இது பயிர் இலை போல் தெரியவில்லை. துல்லியமான நோய் கண்டறிதலுக்கு ஒரு இலையின் தெளிவான படத்தைப் பயன்படுத்துங்கள்.',
+      'noLeafDetected': 'இலை கண்டறியப்படவில்லை',
+      'noLeafDetectedMessage':
+          'இந்த படத்தில் இலை காணப்படவில்லை. ஒரு பயிர் இலையின் தெளிவான, வெளிச்சமான படத்தைப் பயன்படுத்துங்கள்.',
+      'serverUrlLabel': 'Analysis server URL',
+      'serverUrlHint': 'e.g. http://192.168.1.5:8000 (for physical device)',
     },
   };
 
@@ -256,5 +285,12 @@ class AppLocalizations {
   String get admin => _t('admin');
   String get notAPlantLeaf => _t('notAPlantLeaf');
   String get notAPlantLeafMessage => _t('notAPlantLeafMessage');
+  String get noLeafDetected => _t('noLeafDetected');
+  String get noLeafDetectedMessage => _t('noLeafDetectedMessage');
+  String get analyzeTab => _t('analyzeTab');
+  String get historyTab => _t('historyTab');
+  String get previousAnalyses => _t('previousAnalyses');
+  String get noPreviousAnalyses => _t('noPreviousAnalyses');
+  String get serverUrlLabel => _t('serverUrlLabel');
+  String get serverUrlHint => _t('serverUrlHint');
 }
-

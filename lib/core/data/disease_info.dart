@@ -1,5 +1,30 @@
-/// Disease information database with symptoms, treatment, and prevention tips
+/// Disease information database with symptoms, treatment, and prevention tips.
+///
+/// Matches all 13 classes from the leaf_disease_model (inference_image_based.py):
+/// - Apple: Black_rot, healthy
+/// - Corn (maize): Common_rust_, healthy
+/// - Grape: Black_rot, healthy, Leaf_blight_(Isariopsis_Leaf_Spot)
+/// - Potato: Early_blight, healthy, Late_blight
+/// - Tomato: Early_blight, healthy, Late_blight
+/// Mapping: healthy→Healthy, blight→Leaf Blight, rust→Rust, spot→Leaf Spot, rot→Black Rot; else fallback.
 class DiseaseInfo {
+  /// All 13 model class names (keep in sync with ml_server/inference_image_based.py CLASS_NAMES).
+  static const List<String> modelClassNames = [
+    'Apple___Black_rot',
+    'Apple___healthy',
+    'Corn_(maize)___Common_rust_',
+    'Corn_(maize)___healthy',
+    'Grape___Black_rot',
+    'Grape___healthy',
+    'Grape___Leaf_blight_(Isariopsis_Leaf_Spot)',
+    'Potato___Early_blight',
+    'Potato___healthy',
+    'Potato___Late_blight',
+    'Tomato___Early_blight',
+    'Tomato___healthy',
+    'Tomato___Late_blight',
+  ];
+
   final String name;
   final String symptoms;
   final List<String> treatment;
@@ -119,7 +144,48 @@ class DiseaseInfo {
         severity: 'Low to Medium',
       );
     }
-    
-    return null;
+
+    if (name.contains('rot')) {
+      return const DiseaseInfo(
+        name: 'Black Rot / Rot',
+        symptoms: 'Dark brown or black lesions on leaves, fruit, or stems. Leaves may yellow around affected areas and drop.',
+        treatment: [
+          'Remove and destroy all infected plant parts',
+          'Apply copper-based fungicides early in season',
+          'Improve air circulation and reduce humidity',
+          'Avoid overhead watering',
+          'Apply fungicide every 7-10 days during wet periods',
+        ],
+        prevention: [
+          'Plant resistant varieties when available',
+          'Ensure good drainage and air flow',
+          'Water at base, keep foliage dry',
+          'Remove and destroy crop debris at season end',
+          'Rotate crops and avoid planting in same area',
+        ],
+        severity: 'High',
+      );
+    }
+
+    // Fallback for any other detected disease so suggestions are always visible
+    return DiseaseInfo(
+      name: diseaseName,
+      symptoms: 'Leaf or plant shows signs of disease. Early action can help save the crop.',
+      treatment: [
+        'Remove visibly infected leaves or parts',
+        'Apply a broad-spectrum fungicide as per label',
+        'Improve air circulation and avoid wetting leaves',
+        'Ensure proper spacing and nutrition',
+        'Monitor and repeat treatment if needed',
+      ],
+      prevention: [
+        'Use disease-resistant varieties',
+        'Water at soil level, not on foliage',
+        'Keep garden clean; remove dead leaves and debris',
+        'Ensure good drainage and sunlight',
+        'Inspect plants regularly for early signs',
+      ],
+      severity: 'Medium',
+    );
   }
 }

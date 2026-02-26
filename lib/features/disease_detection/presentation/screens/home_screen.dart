@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -12,6 +13,10 @@ import '../../../../services/auth_service.dart';
 import '../../../../services/ml_service.dart';
 import 'about_screen.dart';
 import 'settings_screen.dart';
+
+/// Display labels for non-prediction results (project-friendly wording).
+const String kLabelNoLeafDetected = 'No leaf detected';
+const String kLabelNotCropLeaf = 'Not a crop leaf';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
@@ -42,6 +47,7 @@ class _HomeScreenState extends State<HomeScreen> {
   double? _confidence;
   bool _loading = false;
   String? _error;
+  int _selectedTabIndex = 0;
 
   @override
   void initState() {
@@ -96,9 +102,13 @@ class _HomeScreenState extends State<HomeScreen> {
       // Safety check: Never display "Class_X" labels
       if (label.startsWith('Class_')) {
         debugPrint('⚠️  UI Safety: Filtered out Class_X label: $label');
-        label = 'Unknown'; // Fallback to Unknown if we somehow get Class_X
+        label = 'Unknown';
       }
-      
+      // Map server "No leaf detected" to our display label
+      if (label == 'No leaf detected' || label.toLowerCase().contains('no leaf')) {
+        label = 'No leaf detected';
+      }
+
       // Validate result
       if (label.isEmpty) {
         throw Exception('Model returned invalid label. Please try another image.');
@@ -108,27 +118,28 @@ class _HomeScreenState extends State<HomeScreen> {
         throw Exception('Model returned invalid confidence value.');
       }
       
-      // Only treat as "not a plant leaf" when confidence is very low (model is unsure what it is).
-      // Otherwise show the model's actual label; many leaves get 0.2–0.5 confidence and are still valid.
-      const double notPlantLeafThreshold = 0.18;
+      // Project-friendly display: unknown/low confidence → clear wording for the user.
+      const double minConfidenceToPredict = 0.60;
       String displayLabel = label;
-      if (conf < 0.12) {
-        displayLabel = 'Unknown';
-      } else if (conf < notPlantLeafThreshold) {
-        displayLabel = 'Not a plant leaf';
+      if (conf < 0.08 || label == 'No leaf detected') {
+        displayLabel = kLabelNoLeafDetected;
+      } else if (conf < minConfidenceToPredict) {
+        displayLabel = kLabelNotCropLeaf;
       }
 
-      // Save analysis to Firebase for this user (background)
-      _analysisRepo.saveAnalysis(
+      // Save analysis and image to Firebase for this user (background)
+      final imageBytes = await _image!.readAsBytes();
+          _analysisRepo.saveAnalysis(
         userKey: widget.authService.loggedInUserKey,
         label: displayLabel,
         confidence: conf,
+        imageBytes: imageBytes,
       );
       if (mounted) {
         setState(() {
           _label = displayLabel;
           _confidence = conf;
-          if (displayLabel == 'Not a plant leaf') {
+          if (displayLabel == kLabelNotCropLeaf || displayLabel == kLabelNoLeafDetected) {
             _error = null; // Message is shown in the card instead
           } else if (conf < 0.15) {
             _error = 'Very low confidence (${(conf * 100).toStringAsFixed(0)}%). The image may not be recognized. Please try a clearer image of a crop leaf.';
@@ -178,6 +189,15 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  static bool _isServerConnectionError(String message) {
+    final lower = message.toLowerCase();
+    return lower.contains('settings') ||
+        lower.contains('analysis server url') ||
+        lower.contains('cannot reach') ||
+        lower.contains('not reachable') ||
+        lower.contains('timed out');
+  }
+
   void _openAbout() {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const AboutScreen()),
@@ -188,10 +208,12 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final loc = AppLocalizations.of(context);
-    final padding = MediaQuery.paddingOf(context);
-    final width = MediaQuery.sizeOf(context).width;
+    final media = MediaQuery.of(context);
+    final padding = media.padding;
+    final width = media.size.width;
+    final viewInsets = media.viewInsets;
     final isCompact = width < 400;
-    final horizontalPadding = isCompact ? 20.0 : 28.0;
+    final horizontalPadding = isCompact ? 16.0 : (width > 600 ? 32.0 : 24.0);
 
     final isDark = theme.brightness == Brightness.dark;
     final appBarGradient = isDark ? AppTheme.primaryGradientDark : AppTheme.primaryGradientLight;
@@ -209,12 +231,15 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: EdgeInsets.only(top: topPadding),
               decoration: BoxDecoration(gradient: appBarGradient),
               child: AppBar(
-                  title: Text(
-                    loc.appTitle,
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.3,
-                      color: Colors.white,
+                  title: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      loc.appTitle,
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.3,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                   centerTitle: true,
@@ -239,24 +264,30 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               Expanded(
-                child: SafeArea(
-                  child: LayoutBuilder(
-          builder: (context, constraints) {
-            final maxWidth = constraints.maxWidth;
-            final useWideLayout = maxWidth > 520;
+                child: IndexedStack(
+                  index: _selectedTabIndex,
+                  children: [
+                    SafeArea(
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final maxWidth = constraints.maxWidth;
+                          final useWideLayout = maxWidth > 600;
+                          final contentMaxWidth = useWideLayout ? 560.0 : double.infinity;
 
-            return SingleChildScrollView(
+                          return SingleChildScrollView(
               padding: EdgeInsets.fromLTRB(
                 padding.left + horizontalPadding,
                 8,
                 padding.right + horizontalPadding,
-                padding.bottom + 32,
+                padding.bottom + 32 + viewInsets.bottom,
               ),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: useWideLayout ? 480 : double.infinity),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: contentMaxWidth),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                     // Hero / header
                     const SizedBox(height: 8),
                     Container(
@@ -580,31 +611,52 @@ class _HomeScreenState extends State<HomeScreen> {
                               width: 1,
                             ),
                           ),
-                          child: Row(
+                          child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Icon(
-                                Icons.warning_amber_rounded,
-                                color: Colors.orange.shade700,
-                                size: 20,
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Icon(
+                                    Icons.warning_amber_rounded,
+                                    color: Colors.orange.shade700,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      _error!,
+                                      style: theme.textTheme.bodySmall?.copyWith(
+                                        color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  _error!,
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                              if (_isServerConnectionError(_error!)) ...[
+                                const SizedBox(height: 12),
+                                TextButton.icon(
+                                  onPressed: _openSettings,
+                                  icon: const Icon(Icons.settings, size: 18),
+                                  label: Text(loc.settings),
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: Colors.orange.shade800,
+                                    padding: EdgeInsets.zero,
+                                    minimumSize: const Size(0, 36),
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                   ),
                                 ),
-                              ),
+                              ],
                             ],
                           ),
                         ),
                       ],
                       // Always show result if available
                       if (_label != null && _confidence != null) ...[
-                        if (_label == 'Not a plant leaf')
+                        if (_label == kLabelNotCropLeaf)
                           _NotAPlantLeafCard(loc: loc, theme: theme)
+                        else if (_label == kLabelNoLeafDetected)
+                          _NoLeafDetectedCard(loc: loc, theme: theme)
                         else
                           _EnhancedResultCard(
                             label: _label!,
@@ -616,15 +668,252 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ],
                 ),
+                ),
               ),
-            );
-          },
-        ),
-      ),
-      ),
+                          );
+                        },
+                      ),
+                    ),
+                    _buildHistoryTab(context, theme, loc, padding, horizontalPadding, isDark, surfaceGradient),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
+    bottomNavigationBar: _buildBottomNav(context, loc, theme),
+    );
+  }
+
+  Widget _buildBottomNav(BuildContext context, AppLocalizations loc, ThemeData theme) {
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        boxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.shadow.withValues(alpha: 0.08),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _NavItem(
+                icon: Icons.photo_camera_outlined,
+                selectedIcon: Icons.photo_camera,
+                label: loc.analyzeTab,
+                selected: _selectedTabIndex == 0,
+                onTap: () => setState(() => _selectedTabIndex = 0),
+              ),
+              _NavItem(
+                icon: Icons.history_outlined,
+                selectedIcon: Icons.history,
+                label: loc.historyTab,
+                selected: _selectedTabIndex == 1,
+                onTap: () => setState(() => _selectedTabIndex = 1),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHistoryTab(
+    BuildContext context,
+    ThemeData theme,
+    AppLocalizations loc,
+    EdgeInsets padding,
+    double horizontalPadding,
+    bool isDark,
+    Gradient surfaceGradient,
+  ) {
+    final userKey = widget.authService.loggedInUserKey;
+    if (userKey == null || userKey.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: EdgeInsets.all(horizontalPadding + padding.left),
+          child: Text(
+            loc.noPreviousAnalyses,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          ),
+        ),
+      );
+    }
+    return Container(
+      decoration: BoxDecoration(gradient: surfaceGradient),
+      child: FutureBuilder<List<Map<String, dynamic>>>(
+        future: _analysisRepo.getAnalysesForUser(userKey),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return Center(
+              child: CircularProgressIndicator(color: theme.colorScheme.primary),
+            );
+          }
+          final list = snapshot.data!;
+          if (list.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: EdgeInsets.all(horizontalPadding + padding.left),
+                child: Text(
+                  loc.noPreviousAnalyses,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                ),
+              ),
+            );
+          }
+          return ListView.builder(
+            padding: EdgeInsets.fromLTRB(
+              padding.left + horizontalPadding,
+              16,
+              padding.right + horizontalPadding,
+              padding.bottom + 24,
+            ),
+            itemCount: list.length,
+            itemBuilder: (context, index) {
+              final a = list[index];
+              final imageUrl = a['imageUrl'] as String?;
+              final imageBase64 = a['imageBase64'] as String?;
+              final label = a['label'] as String? ?? '';
+              final confidence = a['confidence'] as double? ?? 0.0;
+              final timestamp = a['timestamp'] as String? ?? '';
+              DateTime? date;
+              try {
+                date = DateTime.tryParse(timestamp);
+              } catch (_) {}
+              final dateStr = date != null
+                  ? '${date.day}/${date.month}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}'
+                  : timestamp;
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                clipBehavior: Clip.antiAlias,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (imageUrl != null && imageUrl.isNotEmpty)
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.network(
+                            imageUrl,
+                            width: 80,
+                            height: 80,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, Object? err, StackTrace? st) => Container(
+                              width: 80,
+                              height: 80,
+                              color: theme.colorScheme.surfaceContainerHighest,
+                              child: Icon(Icons.broken_image_outlined, color: theme.colorScheme.outline),
+                            ),
+                          ),
+                        )
+                      else if (imageBase64 != null && imageBase64.isNotEmpty)
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.memory(
+                            base64Decode(imageBase64),
+                            width: 80,
+                            height: 80,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, Object? err, StackTrace? st) => Container(
+                              width: 80,
+                              height: 80,
+                              color: theme.colorScheme.surfaceContainerHighest,
+                              child: Icon(Icons.broken_image_outlined, color: theme.colorScheme.outline),
+                            ),
+                          ),
+                        )
+                      else
+                        Container(
+                          width: 80,
+                          height: 80,
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(Icons.image_not_supported_outlined, color: theme.colorScheme.outline),
+                        ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              label,
+                              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${(confidence * 100).toStringAsFixed(0)}% ${loc.confidence}',
+                              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              dateStr,
+                              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _NavItem extends StatelessWidget {
+  const _NavItem({
+    required this.icon,
+    required this.selectedIcon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final IconData selectedIcon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(selected ? selectedIcon : icon, size: 24, color: selected ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: selected ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -651,7 +940,7 @@ class _NotAPlantLeafCard extends StatelessWidget {
       child: Column(
         children: [
           Icon(
-            Icons.image_not_supported_rounded,
+            Icons.grass_rounded,
             size: 48,
             color: theme.colorScheme.outline,
           ),
@@ -667,6 +956,56 @@ class _NotAPlantLeafCard extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             loc.notAPlantLeafMessage,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              height: 1.45,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NoLeafDetectedCard extends StatelessWidget {
+  const _NoLeafDetectedCard({required this.loc, required this.theme});
+
+  final AppLocalizations loc;
+  final ThemeData theme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: theme.colorScheme.outline.withValues(alpha: 0.4),
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.visibility_off_rounded,
+            size: 48,
+            color: theme.colorScheme.outline,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            loc.noLeafDetected,
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: theme.colorScheme.onSurface,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            loc.noLeafDetectedMessage,
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
               height: 1.45,
@@ -895,6 +1234,7 @@ class _EnhancedResultCard extends StatelessWidget {
                 isHealthy: isHealthy,
                 isList: true,
               ),
+              const SizedBox(height: 24),
             ] else ...[
               Padding(
                 padding: const EdgeInsets.all(24),

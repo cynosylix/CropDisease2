@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/localization/app_localizations_delegate.dart';
 import 'core/theme/app_theme.dart';
+import 'features/admin/presentation/screens/admin_dashboard_screen.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
 import 'features/disease_detection/presentation/screens/home_screen.dart';
 import 'services/auth_service.dart';
@@ -129,12 +130,25 @@ class _CropDiseaseAppState extends State<CropDiseaseApp> {
         GlobalCupertinoLocalizations.delegate,
       ],
       home: _isLoggedIn
-          ? HomeScreen(
-              authService: _authService,
-              currentLocale: _locale,
-              onLocaleChanged: _setLocale,
-              onLogout: _onLogout,
-            )
+          ? (_authService.isAdmin
+              ? AdminDashboardScreen(
+                  authService: _authService,
+                  onLogout: _onLogout,
+                  currentLocale: _locale,
+                  onLocaleChanged: _setLocale,
+                  getAnalyzeScreen: () => HomeScreen(
+                    authService: _authService,
+                    currentLocale: _locale,
+                    onLocaleChanged: _setLocale,
+                    onLogout: _onLogout,
+                  ),
+                )
+              : HomeScreen(
+                  authService: _authService,
+                  currentLocale: _locale,
+                  onLocaleChanged: _setLocale,
+                  onLogout: _onLogout,
+                ))
           : LoginScreen(
               authService: _authService,
               currentLocale: _locale,

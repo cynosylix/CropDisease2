@@ -1,7 +1,10 @@
-# Dependencies for best.pt (Ultralytics YOLO) inference server
-# Python 3.8+ required. PyTorch is installed automatically with ultralytics.
+# Dependencies for image-based server (assets/model/image-based.py)
+# Use this for leaf disease detection. Python 3.8+ required.
 
-ultralytics>=8.0.0
 fastapi>=0.100.0
 uvicorn[standard]>=0.22.0
 python-multipart>=0.0.6
+tensorflow>=2.10.0
+opencv-python-headless>=4.5.0
+numpy>=1.20.0
+zeroconf>=0.131.0

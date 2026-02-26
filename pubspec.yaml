@@ -37,15 +37,16 @@ dependencies:
   # Firebase
   firebase_core: ^4.4.0
   firebase_database: ^12.1.2
+  firebase_storage: ^13.0.0
 
   # Persist login state (one-time login until user logs out)
   shared_preferences: ^2.2.2
 
-  # ML: on-device ONNX (no server) or fallback to HTTP inference server.
-  flutter_onnxruntime: ^1.6.3
+  # ML: server only (image-based.py in assets/model/ uses leaf_disease_model.tflite there).
   http: ^1.2.0
   image_picker: ^1.1.2
   image: ^4.2.0
+  multicast_dns: ^0.3.2+3
 
 dev_dependencies:
   flutter_test:
@@ -54,13 +55,12 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.4
 
-# App icon (eco/leaf icon matching About screen) — run: dart run tools/generate_app_icon.dart then: dart run flutter_launcher_icons
+# App icon and splash: use assets/icons/icon.png — run: dart run flutter_launcher_icons
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: assets/icons/app_icon.png
-  adaptive_icon_background: "#2E7D32"
-  adaptive_icon_foreground: assets/icons/app_icon.png
+  image_path: assets/icons/icon.png
+ 
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -70,9 +70,7 @@ flutter:
 
   uses-material-design: true
   assets:
-    - assets/labels/labels.txt
-    - assets/test/tflite_test_image.jpg
+    - assets/icons/icon.png
     - assets/icons/app_icon.png
-    - assets/model/
     - assets/data/
 

@@ -1,0 +1,11 @@
+{
+  "name": "cropdisease-scripts",
+  "private": true,
+  "description": "One-time scripts for Crop Disease app (e.g. create admin user)",
+  "scripts": {
+    "create-admin": "node create_admin.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.0.0"
+  }
+}
