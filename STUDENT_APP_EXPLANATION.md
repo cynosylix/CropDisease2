@@ -16,16 +16,16 @@
    - **History** tab loads past analyses from Firebase.  
    - **Settings**: user can set **Analysis server URL** or leave it blank so the app **auto-finds the server** on the same Wi‑Fi (mDNS).
 
-2. **Python server** (`ml_server/server_image_based.py`)  
+2. **Python server** (`ml_server/server.py`)  
    - Runs on your PC (e.g. `http://0.0.0.0:8000`).  
-   - Loads **one TFLite model** from `assets/model/leaf_disease_model.tflite` at startup.  
+   - Loads **best.pt** (YOLO) from `assets/model/` at startup.  
    - Registers **mDNS** so the app can discover it (`_cropdisease._tcp.local`).  
-   - When the app sends an image: resizes/normalizes it, runs **inference**, returns the **class index** and **confidence**.  
+   - When the app sends an image: runs **YOLO inference**, returns the **label** and **confidence**.  
    - No ML runs on the phone; all inference is on the server.
 
 3. **Model and labels**  
-   - **Model:** `assets/model/leaf_disease_model.tflite` (e.g. 13 classes: healthy, blight, rust, spot, rot, etc.).  
-   - **Class names** and **disease info** (symptoms, treatment, prevention) are in the app (`disease_info.dart`), so the app can show tips even when the server only returns a class index.
+   - **Model:** `assets/model/best.pt` (YOLO, 17 classes: Apple, Corn, Potato, Tomato, Grape leaf diseases).  
+   - **Class names** and **disease info** (symptoms, treatment, prevention) are in the app (`disease_info.dart`), so the app can show tips even when the server only returns a label.
 
 4. **Admin**  
    - Admin logs in with a fixed email/password → **Admin Dashboard** to see users and their analysis history (from Firebase).
@@ -35,9 +35,9 @@
 **1. Start the server** (from project root):
 ```bash
 pip install -r ml_server/requirements.txt
-python ml_server/server_image_based.py
+python ml_server/server.py
 ```
-Put `leaf_disease_model.tflite` in `assets/model/`. Keep the terminal open.
+Put `best.pt` (YOLO model) in `assets/model/`. Keep the terminal open.
 
 **2. Run the app:** `flutter run`
 

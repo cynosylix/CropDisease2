@@ -1,28 +1,28 @@
 /// Disease information database with symptoms, treatment, and prevention tips.
 ///
-/// Matches all 13 classes from the leaf_disease_model (inference_image_based.py):
-/// - Apple: Black_rot, healthy
-/// - Corn (maize): Common_rust_, healthy
-/// - Grape: Black_rot, healthy, Leaf_blight_(Isariopsis_Leaf_Spot)
-/// - Potato: Early_blight, healthy, Late_blight
-/// - Tomato: Early_blight, healthy, Late_blight
-/// Mapping: healthy→Healthy, blight→Leaf Blight, rust→Rust, spot→Leaf Spot, rot→Black Rot; else fallback.
+/// Matches YOLO model (best.pt) classes from ml_server/inference_yolo.py.
+/// Keyword mapping: healthy→Healthy, blight→Leaf Blight, rust→Rust, spot→Leaf Spot,
+/// rot→Black Rot, mold→Mold, virus→Virus, mites→Spider Mites; else fallback.
 class DiseaseInfo {
-  /// All 13 model class names (keep in sync with ml_server/inference_image_based.py CLASS_NAMES).
+  /// All YOLO model class names (keep in sync with ml_server/inference_yolo.py).
   static const List<String> modelClassNames = [
-    'Apple___Black_rot',
-    'Apple___healthy',
-    'Corn_(maize)___Common_rust_',
-    'Corn_(maize)___healthy',
-    'Grape___Black_rot',
-    'Grape___healthy',
-    'Grape___Leaf_blight_(Isariopsis_Leaf_Spot)',
-    'Potato___Early_blight',
-    'Potato___healthy',
-    'Potato___Late_blight',
-    'Tomato___Early_blight',
-    'Tomato___healthy',
-    'Tomato___Late_blight',
+    'Apple leaf',
+    'Apple rust leaf',
+    'Corn Gray leaf spot',
+    'Corn leaf blight',
+    'Corn rust leaf',
+    'Potato leaf early blight',
+    'Potato leaf late blight',
+    'Tomato Septoria leaf spot',
+    'Tomato leaf',
+    'Tomato leaf bacterial spot',
+    'Tomato leaf late blight',
+    'Tomato leaf mosaic virus',
+    'Tomato leaf yellow virus',
+    'Tomato mold leaf',
+    'Tomato two spotted spider mites leaf',
+    'grape leaf',
+    'grape leaf black rot',
   ];
 
   final String name;
@@ -39,9 +39,32 @@ class DiseaseInfo {
     required this.severity,
   });
 
+  /// Healthy leaf classes (no disease in name). Model predicts these for healthy leaves.
+  static const List<String> _healthyLeafClasses = [
+    'apple leaf',
+    'tomato leaf',
+    'grape leaf',
+  ];
+
   static DiseaseInfo? getInfo(String diseaseName) {
-    final name = diseaseName.toLowerCase();
-    
+    final name = diseaseName.toLowerCase().trim();
+
+    // Healthy leaf classes: Apple leaf, Tomato leaf, grape leaf
+    if (_healthyLeafClasses.contains(name)) {
+      return const DiseaseInfo(
+        name: 'Healthy',
+        symptoms: 'No visible disease symptoms. Plant appears normal and healthy.',
+        treatment: ['Continue regular care and monitoring'],
+        prevention: [
+          'Maintain proper watering schedule',
+          'Ensure adequate sunlight',
+          'Use balanced fertilizers',
+          'Regular inspection for early signs',
+        ],
+        severity: 'None',
+      );
+    }
+
     if (name.contains('healthy')) {
       return const DiseaseInfo(
         name: 'Healthy',
@@ -140,6 +163,64 @@ class DiseaseInfo {
           'Remove fallen leaves and debris',
           'Use drip irrigation when possible',
           'Choose disease-resistant varieties',
+        ],
+        severity: 'Low to Medium',
+      );
+    }
+
+    if (name.contains('mold') || name.contains('mildew')) {
+      return const DiseaseInfo(
+        name: 'Leaf Mold',
+        symptoms: 'Gray or brown fuzzy mold on leaf undersides. Leaves may yellow and curl.',
+        treatment: [
+          'Remove infected leaves',
+          'Apply fungicides (chlorothalonil or copper)',
+          'Improve air circulation',
+          'Reduce humidity',
+        ],
+        prevention: [
+          'Water at soil level',
+          'Ensure good air flow',
+          'Avoid overhead watering',
+          'Use resistant varieties',
+        ],
+        severity: 'Medium',
+      );
+    }
+
+    if (name.contains('virus') || name.contains('mosaic')) {
+      return const DiseaseInfo(
+        name: 'Viral Disease',
+        symptoms: 'Mottled, mosaic, or yellow patterns on leaves. Stunted growth, distorted leaves.',
+        treatment: [
+          'Remove and destroy infected plants',
+          'Control aphids and other vectors',
+          'No cure for viral infections',
+        ],
+        prevention: [
+          'Use virus-free seed or transplants',
+          'Control insect vectors',
+          'Remove weeds that host viruses',
+          'Sanitize tools between plants',
+        ],
+        severity: 'High',
+      );
+    }
+
+    if (name.contains('mites') || name.contains('spider')) {
+      return const DiseaseInfo(
+        name: 'Spider Mites',
+        symptoms: 'Stippling, yellowing, webbing on leaves. Tiny mites on undersides.',
+        treatment: [
+          'Spray with water to dislodge mites',
+          'Apply insecticidal soap or neem oil',
+          'Use miticides if severe',
+        ],
+        prevention: [
+          'Maintain adequate humidity',
+          'Avoid dusty conditions',
+          'Inspect regularly',
+          'Remove infested leaves early',
         ],
         severity: 'Low to Medium',
       );

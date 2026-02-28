@@ -1033,8 +1033,8 @@ class _EnhancedResultCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isHealthy = label.toLowerCase().contains('healthy');
     final diseaseInfo = DiseaseInfo.getInfo(label);
+    final isHealthy = diseaseInfo?.severity == 'None';
     
     return Container(
       margin: const EdgeInsets.only(top: 8),

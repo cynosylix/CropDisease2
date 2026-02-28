@@ -42,7 +42,7 @@ dependencies:
   # Persist login state (one-time login until user logs out)
   shared_preferences: ^2.2.2
 
-  # ML: server only (image-based.py in assets/model/ uses leaf_disease_model.tflite there).
+  # ML: server only (best.pt + main.py in assets/model/, server in ml_server/server.py).
   http: ^1.2.0
   image_picker: ^1.1.2
   image: ^4.2.0

@@ -1,15 +1,1 @@
-{
-  "0": "Apple___Black_rot",
-  "1": "Apple___healthy",
-  "2": "Corn_(maize)___Common_rust_",
-  "3": "Corn_(maize)___healthy",
-  "4": "Grape___Black_rot",
-  "5": "Grape___healthy",
-  "6": "Grape___Leaf_blight_(Isariopsis_Leaf_Spot)",
-  "7": "Potato___Early_blight",
-  "8": "Potato___healthy",
-  "9": "Potato___Late_blight",
-  "10": "Tomato___Early_blight",
-  "11": "Tomato___healthy",
-  "12": "Tomato___Late_blight"
-}
+{"0":"Apple leaf","1":"Apple rust leaf","2":"Corn Gray leaf spot","3":"Corn leaf blight","4":"Corn rust leaf","5":"Potato leaf early blight","6":"Potato leaf late blight","7":"Tomato Septoria leaf spot","8":"Tomato leaf","9":"Tomato leaf bacterial spot","10":"Tomato leaf late blight","11":"Tomato leaf mosaic virus","12":"Tomato leaf yellow virus","13":"Tomato mold leaf","14":"Tomato two spotted spider mites leaf","15":"grape leaf","16":"grape leaf black rot"}

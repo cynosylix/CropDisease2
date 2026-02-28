@@ -1,11 +1,13 @@
 """
 Inference server for best.pt (Ultralytics YOLO).
-Class names and all data come from the model — no external labels file.
-Run: pip install ultralytics fastapi uvicorn python-multipart
-     uvicorn server:app --host 0.0.0.0 --port 8000
-Model is loaded at startup so the first analysis request is fast.
+Uses assets/model/best.pt and main.py logic.
+Run: pip install -r ml_server/requirements.txt
+     python ml_server/server.py
+     # or: uvicorn server:app --host 0.0.0.0 --port 8000
+Registers mDNS (_cropdisease._tcp.local) so the Flutter app can auto-discover.
 """
 import os
+import socket
 from pathlib import Path
 from typing import Optional
 
@@ -14,11 +16,54 @@ from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-# Model path: use assets/model/best.pt from project root when run from repo
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 MODEL_PATH = os.environ.get("MODEL_PATH", str(PROJECT_ROOT / "assets" / "model" / "best.pt"))
+PORT = 8000
 
 _model = None
+_zeroconf = None
+
+
+def _get_local_ip():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(0)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "127.0.0.1"
+
+
+def _register_mdns():
+    global _zeroconf
+    try:
+        from zeroconf import ServiceInfo, Zeroconf
+        ip = _get_local_ip()
+        info = ServiceInfo(
+            "_cropdisease._tcp.local.",
+            "Crop Disease Server._cropdisease._tcp.local.",
+            addresses=[socket.inet_aton(ip)],
+            port=PORT,
+            server=f"{socket.gethostname().split('.')[0]}.local.",
+        )
+        _zeroconf = Zeroconf()
+        _zeroconf.register_service(info)
+        print(f"mDNS: app can auto-find server at http://{ip}:{PORT}")
+    except Exception as e:
+        print(f"mDNS registration skipped: {e}")
+
+
+def _unregister_mdns():
+    global _zeroconf
+    if _zeroconf:
+        try:
+            _zeroconf.unregister_all_services()
+            _zeroconf.close()
+        except Exception:
+            pass
+        _zeroconf = None
 
 
 def get_model():
@@ -36,14 +81,16 @@ def get_model():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Preload the model at startup so the first /predict request is fast."""
+    """Preload model and register mDNS so the app can auto-discover."""
     global _model
     try:
         get_model()
         print(f"[server] Model loaded: {MODEL_PATH}")
     except Exception as e:
         print(f"[server] Model preload failed (will load on first request): {e}")
+    _register_mdns()
     yield
+    _unregister_mdns()
     _model = None
 
 
@@ -102,8 +149,10 @@ async def predict(file: UploadFile = File(...)):
         names = result.names or {}
         label = names.get(top1_idx, str(top1_idx))
         return {"label": label, "confidence": confidence}
-    # Detection: take top box by confidence
-    if hasattr(result, "boxes") and result.boxes is not None and len(result.boxes) > 0:
+    # Detection: take top box by confidence (or "No leaf detected" if none)
+    if hasattr(result, "boxes") and result.boxes is not None:
+        if len(result.boxes) == 0:
+            return {"label": "No leaf detected", "confidence": 0.0}
         boxes = result.boxes
         confs = boxes.conf
         if hasattr(confs, "cpu"):
@@ -126,4 +175,4 @@ async def health():
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=PORT)
