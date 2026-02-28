@@ -1,10 +1,13 @@
 import 'dart:async';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Auth backed by Firebase Realtime Database.
+/// Auth backed by Firebase Realtime Database and Firebase Auth.
+/// Realtime DB: users, login state, admin flag.
+/// Firebase Auth: required for Storage (request.auth); session persisted automatically.
 /// - Users are stored under the `users` node in Realtime DB.
 /// - Login state is persisted: user stays logged in until they tap Logout.
 /// - Admin: only the user(s) with `isAdmin: true` in Firebase can see the Admin dashboard.
@@ -34,6 +37,8 @@ class AuthService {
 
   String? get loggedInEmail => _loggedInEmail;
   String? get loggedInUserKey => _loggedInUserKey;
+  /// Firebase Auth uid; required for Storage (request.auth.uid == userId).
+  String? get authUid => FirebaseAuth.instance.currentUser?.uid;
   bool get isAdmin => _isAdmin;
   bool get isLoggedIn =>
       _loggedInEmail != null && _loggedInEmail!.isNotEmpty;
@@ -232,7 +237,7 @@ class AuthService {
         throw ArgumentError('An account with this email already exists');
       }
 
-      // Create new user record in Realtime DB only.
+      // Create new user record in Realtime DB.
       final createdAt = DateTime.now().toIso8601String();
       final newRef = usersRef.push();
       // ignore: avoid_print
@@ -243,6 +248,26 @@ class AuthService {
         'password': password.trim(),
         'createdAt': createdAt,
       });
+
+      // Create Firebase Auth user so Storage has request.auth.
+      try {
+        await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: email,
+          password: password.trim(),
+        );
+        // ignore: avoid_print
+        print('[AuthService] register() Firebase Auth user created for Storage');
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'email-already-in-use') {
+          // User exists in Auth; sign in instead.
+          await FirebaseAuth.instance.signInWithEmailAndPassword(
+            email: email,
+            password: password.trim(),
+          );
+        }
+        // Other Auth errors: Realtime DB user exists; Storage will fail until next login.
+      }
+
       // ignore: avoid_print
       print('[AuthService] register() completed successfully, path=/${newRef.path}');
       _loggedInEmail = email;
@@ -338,6 +363,32 @@ class AuthService {
       throw ArgumentError('Invalid email or password');
     }
 
+    // Sign in with Firebase Auth so Storage has request.auth.
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: emailLower,
+        password: passwordTrimmed,
+      );
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'user-not-found') {
+        // Migrate existing Realtime DB user to Firebase Auth.
+        try {
+          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+            email: emailLower,
+            password: passwordTrimmed,
+          );
+        } on FirebaseAuthException catch (e2) {
+          if (e2.code == 'email-already-in-use') {
+            await FirebaseAuth.instance.signInWithEmailAndPassword(
+              email: emailLower,
+              password: passwordTrimmed,
+            );
+          }
+        }
+      }
+      // Other errors: user can still use app; Storage may fail.
+    }
+
     _loggedInEmail = emailLower;
     final name = data['name'];
     _loggedInUserName = (name is String && name.isNotEmpty) ? name : null;
@@ -347,6 +398,9 @@ class AuthService {
   }
 
   Future<void> logout() async {
+    try {
+      await FirebaseAuth.instance.signOut();
+    } catch (_) {}
     _loggedInEmail = null;
     _loggedInUserName = null;
     _loggedInUserKey = null;

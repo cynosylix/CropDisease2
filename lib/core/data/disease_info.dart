@@ -5,9 +5,12 @@
 /// rot→Black Rot, mold→Mold, virus→Virus, mites→Spider Mites; else fallback.
 class DiseaseInfo {
   /// YOLO model class names (keep in sync with best.pt).
+  /// Keyword-based getInfo handles variants (e.g. Bell_pepper leaf spot, Blueberry leaf).
   static const List<String> modelClassNames = [
     'Apple leaf',
     'Apple rust leaf',
+    'Bell_pepper leaf spot',
+    'Blueberry leaf',
     'Corn Gray leaf spot',
     'Corn leaf blight',
     'Corn rust leaf',

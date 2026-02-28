@@ -130,11 +130,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
       // Save analysis and image to Firebase for this user (background)
       final imageBytes = await _image!.readAsBytes();
-          _analysisRepo.saveAnalysis(
+      _analysisRepo.saveAnalysis(
         userKey: widget.authService.loggedInUserKey,
         label: displayLabel,
         confidence: conf,
         imageBytes: imageBytes,
+        authUid: widget.authService.authUid,
       );
       if (mounted) {
         setState(() {

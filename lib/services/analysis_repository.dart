@@ -54,13 +54,15 @@ class AnalysisRepository {
     }
   }
 
-  /// Saves one analysis for the given user. Uploads image to Storage if [imageBytes] provided.
+  /// Saves one analysis for the given user. Uploads image to Storage if [imageBytes] and [authUid] provided.
+  /// Storage path must use auth.uid for rules (request.auth.uid == userId). Realtime DB uses userKey.
   /// No-op if userKey is null.
   Future<void> saveAnalysis({
     required String? userKey,
     required String label,
     required double confidence,
     List<int>? imageBytes,
+    String? authUid,
   }) async {
     if (userKey == null || userKey.isEmpty) return;
     try {
@@ -71,12 +73,12 @@ class AnalysisRepository {
       if (pushKey == null) return;
 
       String? imageUrl;
-      if (imageBytes != null && imageBytes.isNotEmpty) {
+      if (imageBytes != null && imageBytes.isNotEmpty && authUid != null && authUid.isNotEmpty) {
         try {
           final ref = _storage
               .ref()
               .child(_storageAnalysesPath)
-              .child(userKey)
+              .child(authUid)
               .child(_analysesKey)
               .child('$pushKey.jpg');
           await ref.putData(
