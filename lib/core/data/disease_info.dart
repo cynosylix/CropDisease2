@@ -1,10 +1,10 @@
 /// Disease information database with symptoms, treatment, and prevention tips.
 ///
-/// Matches YOLO model (best.pt) classes from ml_server/inference_yolo.py.
+/// Matches YOLO model (best.pt) classes from ml_server/server.py.
 /// Keyword mapping: healthy→Healthy, blight→Leaf Blight, rust→Rust, spot→Leaf Spot,
 /// rot→Black Rot, mold→Mold, virus→Virus, mites→Spider Mites; else fallback.
 class DiseaseInfo {
-  /// All YOLO model class names (keep in sync with ml_server/inference_yolo.py).
+  /// YOLO model class names (keep in sync with best.pt).
   static const List<String> modelClassNames = [
     'Apple leaf',
     'Apple rust leaf',
@@ -44,12 +44,31 @@ class DiseaseInfo {
     'apple leaf',
     'tomato leaf',
     'grape leaf',
+    'blueberry leaf',
   ];
 
-  static DiseaseInfo? getInfo(String diseaseName) {
-    final name = diseaseName.toLowerCase().trim();
+  /// Disease keywords in label = diseased. Healthy labels have none of these.
+  static const List<String> _diseaseKeywords = [
+    'blight', 'spot', 'rust', 'rot', 'mold', 'mildew', 'virus', 'mosaic',
+    'mites', 'bacterial', 'septoria', 'spider',
+  ];
 
-    // Healthy leaf classes: Apple leaf, Tomato leaf, grape leaf
+  /// Returns true if label indicates a healthy leaf (for UI coloring).
+  static bool isHealthyLabel(String label) {
+    final name = label.toLowerCase().trim().replaceAll(RegExp(r'\s+'), ' ');
+    if (_healthyLeafClasses.contains(name) || name.contains('healthy')) return true;
+    // Fallback: "X leaf" (no disease keyword) = healthy
+    if (name.endsWith(' leaf') && !_diseaseKeywords.any((k) => name.contains(k))) return true;
+    return false;
+  }
+
+  static DiseaseInfo? getInfo(String diseaseName) {
+    final name = diseaseName
+        .toLowerCase()
+        .trim()
+        .replaceAll(RegExp(r'\s+'), ' ');
+
+    // Healthy leaf classes: Apple leaf, Tomato leaf, grape leaf, blueberry leaf
     if (_healthyLeafClasses.contains(name)) {
       return const DiseaseInfo(
         name: 'Healthy',
@@ -79,7 +98,23 @@ class DiseaseInfo {
         severity: 'None',
       );
     }
-    
+
+    // Fallback: "X leaf" with no disease keyword = healthy
+    if (name.endsWith(' leaf') && !_diseaseKeywords.any((k) => name.contains(k))) {
+      return const DiseaseInfo(
+        name: 'Healthy',
+        symptoms: 'No visible disease symptoms. Plant appears normal and healthy.',
+        treatment: ['Continue regular care and monitoring'],
+        prevention: [
+          'Maintain proper watering schedule',
+          'Ensure adequate sunlight',
+          'Use balanced fertilizers',
+          'Regular inspection for early signs',
+        ],
+        severity: 'None',
+      );
+    }
+
     if (name.contains('blight')) {
       return const DiseaseInfo(
         name: 'Leaf Blight',

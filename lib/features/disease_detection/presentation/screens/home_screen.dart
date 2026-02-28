@@ -118,8 +118,9 @@ class _HomeScreenState extends State<HomeScreen> {
         throw Exception('Model returned invalid confidence value.');
       }
       
-      // Project-friendly display: unknown/low confidence → clear wording for the user.
-      const double minConfidenceToPredict = 0.60;
+      // Project-friendly display: unknown/very low confidence → clear wording for the user.
+      // Only treat as "Not a crop leaf" when confidence is very low (< 0.25); otherwise show the label.
+      const double minConfidenceToPredict = 0.25;
       String displayLabel = label;
       if (conf < 0.08 || label == 'No leaf detected') {
         displayLabel = kLabelNoLeafDetected;
@@ -1034,7 +1035,8 @@ class _EnhancedResultCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final diseaseInfo = DiseaseInfo.getInfo(label);
-    final isHealthy = diseaseInfo?.severity == 'None';
+    final isHealthy =
+        diseaseInfo?.severity == 'None' || DiseaseInfo.isHealthyLabel(label);
     
     return Container(
       margin: const EdgeInsets.only(top: 8),

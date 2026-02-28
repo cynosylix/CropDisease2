@@ -1,6 +1,6 @@
 // =============================================================================
-// ML service: uses only the server that runs assets/model/image-based.py
-// (which uses leaf_disease_model.tflite in that folder). No on-device model.
+// ML service: uses server (ml_server/server.py) with best.pt (YOLO).
+// No on-device model. Server advertises mDNS for auto-discovery.
 // =============================================================================
 
 import 'dart:async';
@@ -94,11 +94,11 @@ class MlService {
     if (serverUrl != null) {
       _effectiveServerUrl = serverUrl;
       _initialized = true;
-      if (kDebugMode) debugPrint('[MlService] Server ready (image-based.py): $serverUrl');
+      if (kDebugMode) debugPrint('[MlService] Server ready (server.py): $serverUrl');
     }
   }
 
-  /// Try health; on desktop if server not running, try to auto-start image-based server, then retry.
+  /// Try health; on desktop if server not running, try to auto-start server, then retry.
   Future<String?> _ensureServerRunning([String? firstUrl]) async {
     final url = _effectiveServerUrl ?? firstUrl ?? await _getBaseUrl();
     try {
@@ -140,7 +140,7 @@ class MlService {
         [
           '-m',
           'uvicorn',
-          'ml_server.server_image_based:app',
+          'ml_server.server:app',
           '--host',
           '127.0.0.1',
           '--port',
@@ -156,7 +156,7 @@ class MlService {
         onTimeout: () => throw Exception('Timeout'),
       );
       if (res.statusCode == 200) {
-        if (kDebugMode) debugPrint('[MlService] Auto-started image-based server at $_localServerUrl');
+        if (kDebugMode) debugPrint('[MlService] Auto-started server at $_localServerUrl');
         return _localServerUrl;
       }
     } catch (e) {
@@ -172,7 +172,7 @@ class MlService {
       if (bytes.isEmpty) {
         throw Exception('Image file is empty. Please choose a valid image.');
       }
-      if (kDebugMode) debugPrint('[MlService] using server (image-based.py)');
+      if (kDebugMode) debugPrint('[MlService] using server (server.py)');
       return await _runViaServer(bytes, imageFile.path.split(RegExp(r'[/\\]')).last);
     } on StateError catch (_) {
       throw Exception(
@@ -215,7 +215,7 @@ class MlService {
         final msg = e.message.toLowerCase();
         if (msg.contains('connection refused') || msg.contains('failed host lookup')) {
           throw Exception(
-            'Server not reachable. On a physical device, set your PC\'s IP in Settings → Analysis server URL. Run server on PC: uvicorn ml_server.server_image_based:app --host 0.0.0.0 --port 8000',
+            'Server not reachable. On a physical device, set your PC\'s IP in Settings → Analysis server URL. Run server on PC: python ml_server/server.py',
           );
         }
         throw Exception('Network error: ${e.message}');
@@ -248,7 +248,7 @@ class MlService {
     final confidence = (json['confidence'] is num) ? (json['confidence'] as num).toDouble() : 0.0;
     if (label == 'Model not found' || label.contains('Model not found')) {
       throw Exception(
-        'Model file missing. Add leaf_disease_model.tflite to the folder: assets/model/ (same folder as image-based.py), then restart the server.',
+        'Model file missing. Add best.pt to assets/model/, then restart the server (python ml_server/server.py).',
       );
     }
     final isUncertain = confidence < 0.5 || confidence < 0.15;
