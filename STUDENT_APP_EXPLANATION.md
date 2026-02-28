@@ -41,8 +41,14 @@ Put `best.pt` (YOLO model) in `assets/model/`. Keep the terminal open.
 
 **2. Run the app:** `flutter run`
 
-- **Emulator:** uses default server URL.
-- **Phone:** same Wi‑Fi as PC. App can auto-find the server, or set **Settings** → **Analysis server URL** (e.g. `http://192.168.1.5:8000`).
+- **Emulator:** uses `http://10.0.2.2:8000` (host machine). Ensure the server is running.
+- **Phone:** same Wi‑Fi as PC. App may auto-find the server (mDNS), or set **Settings** → **Analysis server URL** (e.g. `http://192.168.1.5:8000`).
+
+### Backend URL not working?
+1. Run the server first and keep the terminal open until you see `Uvicorn running on http://0.0.0.0:8000`.
+2. Verify: open `http://127.0.0.1:8000/health` in a browser; it should return `{"status":"ok",...}`.
+3. **Emulator:** no change needed; app uses `10.0.2.2:8000`.
+4. **Phone:** get your PC’s IP (e.g. `ipconfig` → IPv4) and set **Settings** → **Analysis server URL** to `http://YOUR_PC_IP:8000` (no trailing slash).
 
 ## Login
 - **Students:** Register or Login (email, password, name).
