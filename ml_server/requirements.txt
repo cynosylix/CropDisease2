@@ -1,6 +1,8 @@
 # Dependencies for YOLO-based server (best.pt model)
 # Use this for leaf disease detection. Python 3.8+ required.
-
+#
+# Required (install with: pip install -r ml_server/requirements.txt)
+# -----------------------------------------------------------------------
 fastapi>=0.100.0
 uvicorn[standard]>=0.22.0
 python-multipart>=0.0.6

@@ -17,6 +17,8 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+# Ensure we run with project root as cwd (so "Run Python File" from editor works)
+os.chdir(PROJECT_ROOT)
 MODEL_PATH = os.environ.get("MODEL_PATH", str(PROJECT_ROOT / "assets" / "model" / "best.pt"))
 PORT = 8000
 
