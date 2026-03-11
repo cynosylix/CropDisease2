@@ -20,7 +20,9 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 # Ensure we run with project root as cwd (so "Run Python File" from editor works)
 os.chdir(PROJECT_ROOT)
 MODEL_PATH = os.environ.get("MODEL_PATH", str(PROJECT_ROOT / "assets" / "model" / "best.pt"))
-PORT = 8000
+# Host/port can be overridden via env for different machines (e.g. port conflicts).
+HOST = os.environ.get("CROPD_HOST", "0.0.0.0")
+PORT = int(os.environ.get("CROPD_PORT", "8000"))
 
 _model = None
 _zeroconf = None
@@ -176,5 +178,42 @@ async def health():
     return {"status": "ok", "model": MODEL_PATH}
 
 
+def _is_port_in_use_error(e: OSError) -> bool:
+    msg = str(e).lower()
+    return (
+        "10048" in str(e)
+        or "address already in use" in msg
+        or "eaddrinuse" in msg
+        or "only one usage" in msg
+    )
+
+
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=PORT)
+    base_port = PORT
+    hosts_to_try = [HOST]
+    if HOST == "0.0.0.0":
+        hosts_to_try.append("127.0.0.1")
+    last_error = None
+    for try_host in hosts_to_try:
+        for try_port in range(base_port, min(base_port + 11, 65536)):
+            PORT = try_port
+            display_host = "127.0.0.1" if try_host == "0.0.0.0" else try_host
+            print(f"[server] Starting on {try_host}:{try_port} ...")
+            print(f"[server] Open in browser: http://127.0.0.1:{try_port}/health (wait for 'Uvicorn running' below)")
+            try:
+                uvicorn.run(app, host=try_host, port=try_port)
+                raise SystemExit(0)
+            except OSError as e:
+                last_error = e
+                if _is_port_in_use_error(e):
+                    print(f"[server] Port {try_port} in use, trying next ...")
+                    continue
+                if try_host == "0.0.0.0" and len(hosts_to_try) > 1:
+                    print(f"[server] Bind to 0.0.0.0 failed ({e}), trying 127.0.0.1 ...")
+                    break
+                print(f"[server] Bind failed: {e}")
+                raise
+    print(f"[server] Ports {base_port}-{base_port + 10} in use. Set CROPD_PORT to a free port (e.g. 8020).")
+    if last_error:
+        raise last_error
+    raise SystemExit(1)
