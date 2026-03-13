@@ -286,13 +286,23 @@ class SettingsScreen extends StatelessWidget {
                               ),
                               const SizedBox(width: 16),
                               Expanded(
-                                child: Text(
-                                  loc.serverUrlHint,
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                                child: FutureBuilder<SharedPreferences>(
+                                  future: SharedPreferences.getInstance(),
+                                  builder: (context, snapshot) {
+                                    final prefs = snapshot.data;
+                                    final saved = prefs?.getString(_prefKeyServerUrl)?.trim();
+                                    final text = (saved == null || saved.isEmpty)
+                                        ? loc.serverUrlHint
+                                        : saved;
+                                    return Text(
+                                      text,
+                                      style: theme.textTheme.bodyMedium?.copyWith(
+                                        color: theme.colorScheme.onSurfaceVariant,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    );
+                                  },
                                 ),
                               ),
                               Icon(
