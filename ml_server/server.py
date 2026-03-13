@@ -28,16 +28,46 @@ _model = None
 _zeroconf = None
 
 
-def _get_local_ip():
+def _get_local_ip() -> str:
+    """
+    Decide which IPv4 address to advertise for local discovery.
+
+    Priority:
+    1. CROPD_IP env var (explicit override for unstable / VPN / multi‑NIC setups)
+    2. First non‑loopback IPv4 from hostname resolution
+    3. Fallback to old 8.8.8.8 trick
+    4. Final fallback: 127.0.0.1
+    """
+    # 1) Explicit override for professional deployments / client machines
+    env_ip = os.environ.get("CROPD_IP")
+    if env_ip:
+        return env_ip
+
+    # 2) Use hostname resolution to pick a non‑loopback IPv4
+    try:
+        hostname = socket.gethostname()
+        infos = socket.getaddrinfo(hostname, None, family=socket.AF_INET)
+        for family, _type, _proto, _canonname, sockaddr in infos:
+            ip = sockaddr[0]
+            if not ip.startswith("127."):
+                return ip
+    except Exception:
+        pass
+
+    # 3) Fallback: connect to a public IP to discover outbound interface
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.settimeout(0)
         s.connect(("8.8.8.8", 80))
         ip = s.getsockname()[0]
         s.close()
-        return ip
+        if ip and not ip.startswith("127."):
+            return ip
     except Exception:
-        return "127.0.0.1"
+        pass
+
+    # 4) Last resort: loopback
+    return "127.0.0.1"
 
 
 def _register_mdns():
