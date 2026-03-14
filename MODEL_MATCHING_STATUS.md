@@ -1,6 +1,10 @@
-# TFLite Model Matching Status
+# Model Matching Status
 
-## ✅ What MATCHES Your Model
+> **Note:** The app uses **best.pt** (YOLO) via the ML server (`ml_server/server.py`). This document describes TFLite/legacy setup for reference only.
+
+---
+
+## ✅ What MATCHES Your Model (TFLite reference)
 
 ### 1. **Preprocessing** ✅
 - **ImageNet Normalization**: ✅ Matches MobileNet standard
@@ -12,7 +16,7 @@
 - **Input Size**: ✅ Dynamically detected from model (usually 224x224)
 
 ### 2. **Model Loading** ✅
-- **File Path**: ✅ `assets/model/plant_disease_mobilenet.tflite`
+- **File Path**: ✅ `assets/model/plant_disease_mobilenet.tflite` (legacy – current app uses `best.pt` via server)
 - **Loading Method**: ✅ `Interpreter.fromAsset()` (correct)
 - **Tensor Reading**: ✅ Reads input/output tensors correctly
 

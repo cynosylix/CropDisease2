@@ -55,9 +55,11 @@ That’s the only file the app needs to switch to your Firebase account. There a
 
 ---
 
-## Optional: iOS
+## Optional: Admin and iOS
 
-If you build for iOS later, in the same Firebase project add an **iOS app** with your iOS bundle ID, download **`GoogleService-Info.plist`**, and put it in `ios/Runner/`. We can add that when you’re ready.
+**Create admin:** After replacing `google-services.json`, put your service account key at `scripts/serviceAccountKey.json`, then run: `cd scripts && npm install && node create_admin.js --email admin@yourdomain.com --password YourPassword123`
+
+**iOS:** If you build for iOS later, add an **iOS app** with your iOS bundle ID, download **`GoogleService-Info.plist`**, and put it in `ios/Runner/`. We can add that when you’re ready.
 
 ---
 

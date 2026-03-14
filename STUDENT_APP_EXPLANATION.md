@@ -52,4 +52,65 @@ Put `best.pt` (YOLO model) in `assets/model/`. Keep the terminal open.
 
 ## Login
 - **Students:** Register or Login (email, password, name).
-- **Admin:** Create an admin in your Firebase project (see **ADMIN_SETUP.md**), then log in with that email/password → Admin Dashboard (users, their history).
+- **Admin:** Create an admin in your Firebase project (see FIREBASE_SWITCH_ACCOUNT.md), then log in with that email/password → Admin Dashboard (users, their history).
+
+---
+
+## Dart Files – Detailed Reference
+
+### Entry point
+
+| File | Purpose |
+|------|---------|
+| `lib/main.dart` | App entry point. Initializes Firebase, SharedPreferences, and AuthService. Shows loading until auth is checked, then routes to LoginScreen, HomeScreen, or AdminDashboardScreen. Handles locale (en, ml, hi, ta) and theme (light/dark). Admin users go to AdminDashboardScreen; regular users to HomeScreen. |
+
+---
+
+### Core
+
+| File | Purpose |
+|------|---------|
+| `lib/core/data/disease_info.dart` | Disease info database. Holds `modelClassNames` (19 YOLO classes), `getInfo(label)` to return symptoms/treatment/prevention/severity, and `isHealthyLabel(label)` for UI coloring. Uses keyword matching (blight, spot, rust, rot, etc.) to map server labels to DiseaseInfo. |
+| `lib/core/localization/app_localizations.dart` | In-app localization without ARB. Supports en, ml, hi, ta. Exposes getters (e.g. `appTitle`, `camera`, `analyzing`, `login`) that return the string for the current locale. Fallback to English. |
+| `lib/core/localization/app_localizations_delegate.dart` | Flutter LocalizationsDelegate for AppLocalizations. Loads the right locale and reports support for en/ml/hi/ta. |
+| `lib/core/theme/app_theme.dart` | Light and dark Material 3 themes. Teal/green gradients, amber for alerts. Defines color schemes, typography, card/button styles, AppBar, etc. Uses system fonts (offline-safe). |
+| `lib/core/widgets/app_launcher_logo.dart` | Splash/launcher logo widget. Gradient background, centered card with eco icon. Scalable; used in a 1024x1024 area. |
+
+---
+
+### Services
+
+| File | Purpose |
+|------|---------|
+| `lib/services/auth_service.dart` | Auth via Firebase Realtime DB + Firebase Auth. Login/register against `users` node. Persists session (SharedPreferences). Admin flag from `isAdmin` in DB. Syncs to Firebase Auth for Storage rules. |
+| `lib/services/ml_service.dart` | Talks to Python server (best.pt YOLO). Uses base URL (emulator: 10.0.2.2:8000; device: Settings URL or mDNS discovery). Sends image to `/predict`, returns [label, confidence, isUncertain]. Can auto-start server on desktop if CROP_DISEASE_PROJECT is set. |
+| `lib/services/analysis_repository.dart` | Saves and loads analyses in Firebase. Stores label, confidence, timestamp in Realtime DB at `users/{userKey}/analyses/`. Optionally uploads image to Storage; always stores base64 thumbnail in DB so History works without Storage. |
+| `lib/services/model_matcher.dart` | Diagnostic helper for TFLite/legacy setup. Checks input shape, type, label count vs model. Used for debugging; main app uses YOLO server, not TFLite. |
+
+---
+
+### Auth screens
+
+| File | Purpose |
+|------|---------|
+| `lib/features/auth/presentation/screens/login_screen.dart` | Login UI (email, password). Calls AuthService.login(), shows errors. Navigates to RegisterScreen. Language selector. On success calls onLoginSuccess. |
+| `lib/features/auth/presentation/screens/register_screen.dart` | Registration (name, email, password, confirm). Validation. Calls AuthService.register(). Links to LoginScreen. Shows localized errors (e.g. email exists, password too short). |
+
+---
+
+### Disease detection screens
+
+| File | Purpose |
+|------|---------|
+| `lib/features/disease_detection/presentation/screens/home_screen.dart` | Main screen: Analyze + History tabs. Camera/gallery image picker → MlService.detect() → shows label, confidence, DiseaseInfo (symptoms, treatment, prevention). Saves to AnalysisRepository. Handles “No leaf detected” and “Not a crop leaf”. |
+| `lib/features/disease_detection/presentation/screens/settings_screen.dart` | Settings: Language (en/ml/hi/ta), Analysis server URL (SharedPreferences `analysis_server_url`), About, Logout. Shows username. Admin link to AdminDashboardScreen. |
+| `lib/features/disease_detection/presentation/screens/about_screen.dart` | About page. App description, localized via AppLocalizations. |
+
+---
+
+### Admin screens
+
+| File | Purpose |
+|------|---------|
+| `lib/features/admin/presentation/screens/admin_dashboard_screen.dart` | Admin home. Lists users from AnalysisRepository. Tap user → AdminUserDetailScreen. Has “Analyze” (opens HomeScreen) and Logout. |
+| `lib/features/admin/presentation/screens/admin_user_detail_screen.dart` | One user’s analyses: thumbnails, labels, confidence, dates. Uses AnalysisRepository.getAnalysesForUser(). |
