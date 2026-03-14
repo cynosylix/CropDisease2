@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "16798915611",
-    "project_id": "cropleafdisease",
-    "storage_bucket": "cropleafdisease.firebasestorage.app"
+    "project_number": "573305023797",
+    "project_id": "cropdiesease-b1e57",
+    "storage_bucket": "cropdiesease-b1e57.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:16798915611:android:0155ac41a3b280ea98ecbe",
+        "mobilesdk_app_id": "1:573305023797:android:ad9234e334fa2a29c4707c",
         "android_client_info": {
           "package_name": "com.example.cropdiseasedetector"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyAXVCDOr9gIAl1vxD5EXToQ45JM1iqaY90"
+          "current_key": "AIzaSyDkSyl-5eIUGDqtxmQZ85er8L_JD0U28yE"
         }
       ],
       "services": {

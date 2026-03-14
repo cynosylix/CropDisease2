@@ -7,7 +7,7 @@ Each child has: `name`, `email`, `password`, `createdAt`.
 ## 1. Check the database
 
 - In Firebase Console go to **Build → Realtime Database**.
-- Confirm you are in project **cropdiseasedetector-86405** and database **https://cropdiseasedetector-86405-default-rtdb.firebaseio.com** (same as in `android/app/google-services.json`).
+- Confirm you are in project **cropdiesease-b1e57** and database **https://cropdiesease-b1e57-default-rtdb.firebaseio.com** (same as in `android/app/google-services.json`).
 - Under the root you should see a **`users`** node. New app registrations create keys like **`-Mxxxx...`** or **`-Nxxxx...`** (push IDs). Keys like `0OPX3bs7w6c3fSK7SQpVCz9vMgk1` are from Firebase Auth / another system.
 
 ## 2. Allow writes to `users`

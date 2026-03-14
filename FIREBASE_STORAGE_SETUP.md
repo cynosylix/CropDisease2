@@ -16,11 +16,11 @@ Firebase may show: **"To use Storage, upgrade your project's pricing plan"**. St
 
 ## 1. Enable Storage (only if your project has Blaze / Storage enabled)
 
-1. Open [Firebase Console](https://console.firebase.google.com) and select **your project** (e.g. `cropleafdisease` from `google-services.json`).
+1. Open [Firebase Console](https://console.firebase.google.com) and select **your project** (e.g. `cropdiesease-b1e57` from `google-services.json`).
 2. Go to **Build** → **Storage**.
 3. If you see "upgrade your project's pricing plan", you need to upgrade to **Blaze** in **Project settings** → **Usage and billing** (or skip Storage and use the app without image storage).
 4. Click **Get started**, choose **Start in production mode** (we’ll set rules next) or **Start in test mode** for testing.
-5. Pick a location and click **Done**. Your bucket will be e.g. `cropleafdisease.firebasestorage.app` (see `google-services.json`).
+5. Pick a location and click **Done**. Your bucket will be e.g. `cropdiesease-b1e57.firebasestorage.app` (see `google-services.json`).
 
 ## 2. Set Security Rules
 
@@ -59,7 +59,7 @@ Run the app, log in, analyze a leaf image. You should see in the terminal:
 
 If you still see **Image upload failed** or **404**, check:
 
-- Your project in Console matches `google-services.json` (e.g. `cropleafdisease`).
+- Your project in Console matches `google-services.json` (e.g. `cropdiesease-b1e57`).
 - Storage is **enabled** (Build → Storage shows a bucket).
 - **Authentication** is enabled (Email/Password).
 - **Rules** are published and allow `users/{userId}/analyses/` where `userId == auth.uid`.
